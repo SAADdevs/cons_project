@@ -1,0 +1,1 @@
+C:\Users\Public\S4\PFE\flutter_application_1\my_app\build\app\intermediates\cxx\Debug\e5d524gi\obj\arm64-v8a

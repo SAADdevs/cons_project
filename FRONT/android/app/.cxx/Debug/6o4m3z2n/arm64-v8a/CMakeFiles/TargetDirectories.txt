@@ -1,0 +1,2 @@
+C:/project_PFE/FRONT/android/app/.cxx/Debug/6o4m3z2n/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/project_PFE/FRONT/android/app/.cxx/Debug/6o4m3z2n/arm64-v8a/CMakeFiles/rebuild_cache.dir

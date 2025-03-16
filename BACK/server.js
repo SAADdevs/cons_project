@@ -20,7 +20,7 @@ app.use('/api/consultations', consultationRoutes);
 // Global Error Handler
 app.use(errorHandler);
 
-// Start the server
+// Start the server 
 app.listen(5000, () => {
     console.log('Server is running on port 5000');
 });

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:my_app/core/utils/constants.dart';
 
+
 class ApiService {
   static const String baseUrl = "http://192.168.1.10:5000/api/auth"; // For Android emulator, use your IP for real devices
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
+import 'package:my_app/views/doctors/doctor_home_screen.dart';
 import 'package:my_app/views/auth/login_screen.dart';// Import the DoctorConsultationScreen
 
 void main() {
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home:const DoctorConsultationScreen(), // Set the DoctorConsultationScreen as the home screen
+      home: const DoctorHomeScreen(), // Set the DoctorConsultationScreen as the home screen
     );
   }
 }

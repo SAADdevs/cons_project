@@ -13,15 +13,15 @@ class Consultation {
     return result.rows[0];
 }
 
-    static async getDoctorConsultations(doctor_id) {
-        const result = await pool.query(`
-            SELECT c.*, p.name as patient_name
-            FROM consultations c
-            JOIN patients p ON c.patient_id = p.id
-            WHERE c.doctor_id = ?
-          `, [doctorId]);
-        return result.rows;
-    }
+static async getDoctorConsultations(doctor_id) {
+    const result = await pool.query(`
+        SELECT c.*, p.full_name as patient_name
+        FROM consultations c
+        JOIN users p ON c.patient_id = p.id
+        WHERE c.doctor_id = $1
+    `, [doctor_id]);
+    return result.rows;
+}
 
     static async updateStatus(consultation_id, status, consultation_date = null) {
         // If the doctor is accepting, ensure a date is provided

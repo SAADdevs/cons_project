@@ -165,6 +165,20 @@ class AuthController {
             res.status(500).json({ message: "Server error" });
         }
     }
+
+    static async getAuthUserId(req, res) {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ message: 'User not authenticated' });
+            }
+
+            const userId = req.user.id;
+            res.status(200).json({ userId });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
 }
 
 module.exports = AuthController;

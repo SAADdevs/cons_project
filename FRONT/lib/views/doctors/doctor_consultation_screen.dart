@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/models/consultation.dart';
 import '../../services/consultation_service.dart';
-import 'package:intl/intl.dart'; // For date formatting
+import 'package:intl/intl.dart';
+import '../../services/auth_service_api.dart'; // Import your auth service
 
 class DoctorConsultationScreen extends StatefulWidget {
   const DoctorConsultationScreen({super.key});
@@ -25,8 +26,23 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
   Future<void> _fetchConsultations() async {
     setState(() => _isLoading = true);
     try {
-      final fetchedConsultations = await ConsultationService.fetchPendingConsultations(1); // Replace 1 with actual doctor ID
-      setState(() => consultations = fetchedConsultations);
+      // Get the doctor ID asynchronously
+      final doctorId = await ApiService.getCurrentDoctorId();
+      
+      if (doctorId != null) {
+        final fetchedConsultations = await ConsultationService.fetchPendingConsultations(doctorId);
+        setState(() => consultations = fetchedConsultations);
+      } else {
+        // Handle the case where doctor ID is null
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to get doctor ID. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

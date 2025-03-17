@@ -9,7 +9,9 @@ const { validateRegisterInput } = require('../middlewares/ValidationMiddleware')
 router.post('/register', AuthController.registerUser); // Ensure the controller method exists
 
 // Login route
-router.post('/login', AuthController.loginUser);  // Ensure the controller method exists
+router.post('/login', AuthController.loginUser);
+
+router.post('/login/auth-user-id', AuthController.getAuthUserId);// Ensure the controller method exists
 
 // Protected routes
 //router.get('/doctors', verifyToken, checkRole(['patient', 'admin']), AuthController.getAllDoctors);  // Ensure the controller method exists

@@ -1,17 +1,31 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/services/auth_service_api.dart';
 import '../core/models/consultation.dart'; // Import the Consultation model
 
 class ConsultationService {
   static const String baseUrl = "http://192.168.1.10:5000/api";
 
   // Fetch pending consultations for a doctor
-  static Future<List<Consultation>> fetchPendingConsultations(int doctorId) async {
+ static Future<List<Consultation>> fetchPendingConsultations(int doctorId) async {
   try {
     print('Fetching consultations for doctor ID: $doctorId');
+    
+    // Get authentication token
+    final String? token = await ApiService.getAuthToken();
+    if (token == null) {
+      print('No auth token found');
+      throw Exception('Authentication token not found');
+    }
+    
+    // Make authenticated request
     final response = await http.get(
       Uri.parse('$baseUrl/consultations/doctor/$doctorId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
     );
 
     print('Response status code: ${response.statusCode}');

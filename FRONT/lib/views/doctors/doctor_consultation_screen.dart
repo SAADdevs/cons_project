@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/views/doctors/doctor_home_screen.dart';
 import '../../core/models/consultation.dart';
 import '../../services/consultation_service.dart';
 import 'package:intl/intl.dart';
@@ -173,29 +174,40 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pending Consultations'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchConsultations,
-            tooltip: 'Refresh',
-          ),
-        ],
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Pending Consultations'),
+      backgroundColor: Colors.blue,
+      foregroundColor: Colors.white,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () {
+          Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const  DoctorHomeScreen()),
+);
+        },
+        tooltip: 'Back to Home',
       ),
-      body: _doctorId == null
-          ? _buildDoctorIdError()
-          : (_isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : consultations.isEmpty
-                  ? _buildEmptyState()
-                  : _buildConsultationsList()),
-    );
-  }
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: _fetchConsultations,
+          tooltip: 'Refresh',
+        ),
+      ],
+    ),
+    body: _doctorId == null
+        ? _buildDoctorIdError()
+        : (_isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : consultations.isEmpty
+                ? _buildEmptyState()
+                : _buildConsultationsList()),
+  );
+}
 
   Widget _buildDoctorIdError() {
     return Center(

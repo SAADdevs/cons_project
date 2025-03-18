@@ -77,7 +77,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     try {
       if (doctorId != null) {
         // Fetch pending consultations count
-        final pendingConsultations = await ConsultationService.fetchPendingConsultations(doctorId!);
+        final pendingConsultations = await ConsultationService.fetchPendingConsultations(1);
         
         // You would need to implement this method in your ConsultationService
         // final upcomingAppointments = await ConsultationService.fetchUpcomingConsultations(doctorId!);

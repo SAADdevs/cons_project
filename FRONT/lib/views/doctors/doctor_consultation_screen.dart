@@ -375,14 +375,14 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton.icon(
-                      icon: const Icon(Icons.close),
-                      label: const Text('Refuse'),
-                      onPressed: () => _updateConsultationStatus(consultation.id, 'refused'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                      ),
-                    ),
+  icon: const Icon(Icons.close),
+  label: const Text('Refuse'),
+  onPressed: () => _updateConsultationStatus(consultation.id, 'rejected'), // Change from 'refused' to 'rejected'
+  style: OutlinedButton.styleFrom(
+    foregroundColor: Colors.red,
+    side: const BorderSide(color: Colors.red),
+  ),
+),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.check),

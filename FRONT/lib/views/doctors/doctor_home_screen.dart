@@ -107,20 +107,52 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     try {
       setState(() => isLoading = true);
       
-      await ApiService.updateDoctorAvailability(
-        doctorId: doctorId!,
-        isAvailable: !isAvailable,
+      // Get the token
+      final token = await ApiService.getAuthToken();
+      if (token == null) throw Exception('Authentication token not found');
+      
+      // Print doctor ID and current availability for debugging
+      print("Doctor ID: $doctorId, Current availability: $isAvailable");
+      
+      // Print the request URL and body for debugging
+      final url = "${ApiService.baseUrl}/doctors/update-availability";
+      final body = {
+        "doctor_id": doctorId,
+        "is_available": !isAvailable
+      };
+      print("Making request to: $url");
+      print("Request body: ${jsonEncode(body)}");
+      
+      // Make the API call to update availability
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token"
+        },
+        body: jsonEncode(body),
       );
       
-      setState(() => isAvailable = !isAvailable);
+      // Print the response for debugging
+      print("Response status: ${response.statusCode}");
+      print("Response body: ${response.body}");
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Status updated to ${isAvailable ? 'Available' : 'Not Available'}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (response.statusCode == 200) {
+        // Only try to decode if the status is 200
+        setState(() => isAvailable = !isAvailable);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status updated to ${isAvailable ? 'Available' : 'Not Available'}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // Don't try to decode JSON if the response might be HTML
+        throw Exception('Failed to update availability: ${response.statusCode}');
+      }
     } catch (e) {
+      print("Error in _toggleAvailability: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to update availability: $e'),
@@ -128,10 +160,13 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         ),
       );
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
+  // This is the missing build method that was causing the error
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -345,7 +380,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.medical_services,
           color: Colors.orange,
           onTap: () {
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
             );

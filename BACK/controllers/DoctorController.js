@@ -125,6 +125,45 @@ class DoctorController {
         }
     }
 
+    static async unverifyDoctor(req, res) {
+        const { id } = req.params; 
+        try {
+            const result = await pool.query("SELECT * FROM doctors WHERE id = $1", [id]);
+            if (result.rows.length === 0) {
+                return res.status(404).json({ message: "Doctor not found" });
+            }
+    
+            await pool.query("UPDATE doctors SET is_verified = $1 WHERE id = $2", [false, id]);
+            res.status(200).json({ message: "Doctor unverified successfully" });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ message: "Server error" });
+        }
+    }
+
+    // Add this method to your DoctorController.js file
+
+// Get all doctors with their names from users table
+static async getDoctorsWithNames(req, res) {
+    try {
+        const query = `
+            SELECT d.id, d.user_id, u.full_name, d.specialties, d.is_verified
+            FROM doctors d
+            JOIN users u ON d.user_id = u.id
+            WHERE u.role = 'doctor'
+        `;
+        
+        const result = await pool.query(query);
+        
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error fetching doctors with names:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+}
+
+// Then add this route in your routes file:
+// router.get('/doctors/with-names', DoctorController.getDoctorsWithNames);
     
     
     

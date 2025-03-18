@@ -4,7 +4,7 @@ import '../core/models/consultation.dart';
 import '../services/auth_service_api.dart';
 
 class ConsultationService {
-  static const String baseUrl = "http://192.168.1.69:5000/api"; // Match your API base URL
+  static const String baseUrl = "http://192.168.158.178:5000/api"; // Match your API base URL
 
   // Fetch pending consultations for a doctor
   static Future<List<Consultation>> fetchPendingConsultations(int doctorId) async {

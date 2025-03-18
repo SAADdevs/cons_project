@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 
 class ApiService {
-  static const String baseUrl = "http://192.168.1.69:5000/api/auth"; // For Android emulator, use your IP for real devices
+  static const String baseUrl = "http://192.168.158.178:5000/api/auth"; // For Android emulator, use your IP for real devices
   static const secureStorage = FlutterSecureStorage();
 
   // Login Function

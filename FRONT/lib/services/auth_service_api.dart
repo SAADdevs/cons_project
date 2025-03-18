@@ -95,7 +95,7 @@ class ApiService {
     if (token == null) throw Exception('Authentication token not found');
     
     // Direct URL with doctorId in the path
-    final String url = "http://192.168.1.69:5000/api/doctors/approve/$doctorId";
+    final String url = "http://192.168.158.144:5000/api/doctors/approve/$doctorId";
     
     final response = await http.put(
       Uri.parse(url),

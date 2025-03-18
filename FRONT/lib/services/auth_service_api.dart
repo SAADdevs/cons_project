@@ -4,7 +4,7 @@ import 'package:my_app/core/utils/constants.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.1.69:5000/api/auth"; // For Android emulator, use your IP for real devices
+  static const String baseUrl = "http://192.168.158.144:5000/api/auth"; // For Android emulator, use your IP for real devices
   static const secureStorage = FlutterSecureStorage();
 
   // Login Function
@@ -94,7 +94,7 @@ class ApiService {
     if (token == null) throw Exception('Authentication token not found');
     
     // Direct URL with doctorId in the path
-    final String url = "http://192.168.1.69:5000/api/doctors/approve/$doctorId";
+    final String url = "http://192.168.158.144:5000/api/doctors/approve/$doctorId";
     
     final response = await http.put(
       Uri.parse(url),

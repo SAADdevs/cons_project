@@ -76,7 +76,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Future<void> _fetchConsultationsCounts() async {
     try {
       if (doctorId != null) {
-        // Fetch pending consultations count
+        // Fetch pending consultations count using the actual doctor ID
         final pendingConsultations = await ConsultationService.fetchPendingConsultations(doctorId!);
         
         // You would need to implement this method in your ConsultationService
@@ -89,6 +89,15 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       }
     } catch (e) {
       print('Error fetching consultation counts: $e');
+      // Optionally show a snackbar to the user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error fetching consultations: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
@@ -336,10 +345,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.medical_services,
           color: Colors.orange,
           onTap: () {
-Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const  DoctorConsultationScreen()),
-);          },
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
+            );
+          },
         ),
         _buildFeatureCard(
           title: 'Chat Consultations',

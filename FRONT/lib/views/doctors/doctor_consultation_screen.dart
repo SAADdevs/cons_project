@@ -14,34 +14,48 @@ class DoctorConsultationScreen extends StatefulWidget {
 class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
   List<Consultation> consultations = [];
   bool _isLoading = false;
+  int? _doctorId;
   final DateFormat _dateFormat = DateFormat('MMM dd, yyyy - HH:mm');
 
   @override
   void initState() {
     super.initState();
-    _fetchConsultations();
+    _loadDoctorIdAndConsultations();
+  }
+  
+  // Load doctor ID and then fetch consultations
+  Future<void> _loadDoctorIdAndConsultations() async {
+    try {
+      final doctorId = await ApiService.getCurrentDoctorId();
+      if (mounted) {
+        setState(() => _doctorId = doctorId);
+        await _fetchConsultations();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading doctor information: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // Fetch pending consultations
   Future<void> _fetchConsultations() async {
+    if (_doctorId == null) {
+      // If doctor ID is not available, try to load it first
+      await _loadDoctorIdAndConsultations();
+      return;
+    }
+    
     setState(() => _isLoading = true);
     try {
-      // Get the doctor ID asynchronously
-      final doctorId = await ApiService.getCurrentDoctorId();
-      
-      if (doctorId != null) {
-        final fetchedConsultations = await ConsultationService.fetchPendingConsultations(doctorId);
+      final fetchedConsultations = await ConsultationService.fetchPendingConsultations(_doctorId!);
+      if (mounted) {
         setState(() => consultations = fetchedConsultations);
-      } else {
-        // Handle the case where doctor ID is null
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unable to get doctor ID. Please log in again.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -173,11 +187,56 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : consultations.isEmpty
-              ? _buildEmptyState()
-              : _buildConsultationsList(),
+      body: _doctorId == null
+          ? _buildDoctorIdError()
+          : (_isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : consultations.isEmpty
+                  ? _buildEmptyState()
+                  : _buildConsultationsList()),
+    );
+  }
+
+  Widget _buildDoctorIdError() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 80,
+            color: Colors.red[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Unable to get doctor ID',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Please log in again to continue',
+            style: TextStyle(
+              color: Colors.grey[500],
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.login),
+            label: const Text('Go to Login'),
+            onPressed: () {
+              Navigator.of(context).pushReplacementNamed('/login');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -316,14 +375,14 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton.icon(
-                      icon: const Icon(Icons.close),
-                      label: const Text('Refuse'),
-                      onPressed: () => _updateConsultationStatus(consultation.id, 'refused'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                      ),
-                    ),
+  icon: const Icon(Icons.close),
+  label: const Text('Refuse'),
+  onPressed: () => _updateConsultationStatus(consultation.id, 'rejected'), // Change from 'refused' to 'rejected'
+  style: OutlinedButton.styleFrom(
+    foregroundColor: Colors.red,
+    side: const BorderSide(color: Colors.red),
+  ),
+),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.check),

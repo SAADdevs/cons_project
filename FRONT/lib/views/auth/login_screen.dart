@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/services/auth_service_api.dart';
 import 'package:my_app/views/auth/register_screen.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
+import 'package:my_app/views/doctors/doctor_home_screen.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -39,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Successful login
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
+            MaterialPageRoute(builder: (context) => const  DoctorHomeScreen()),
           );
         } else if (response.containsKey('message') && 
                    response['message'] == "Doctor account not verified yet") {

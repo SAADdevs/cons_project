@@ -2,47 +2,78 @@ class Consultation {
   final int id;
   final int patientId;
   final String? patientName;
-  final int doctorId;
-  final String? doctorName;
   final String type;
-  final String description;
-  final bool isEmergency;
   final String status;
+  final bool isEmergency;
   final DateTime? consultationDate;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final String? description;
+  final String? symptoms;
+  final String? diagnosis;
+  final String? prescription;
+  final String? notes;
 
   Consultation({
     required this.id,
     required this.patientId,
     this.patientName,
-    required this.doctorId,
-    this.doctorName,
     required this.type,
-    required this.description,
-    required this.isEmergency,
     required this.status,
+    required this.isEmergency,
     this.consultationDate,
     required this.createdAt,
-    required this.updatedAt,
+    this.description,
+    this.symptoms,
+    this.diagnosis,
+    this.prescription,
+    this.notes,
   });
 
   factory Consultation.fromJson(Map<String, dynamic> json) {
+    // Handle consultation_id or id field
+    int consultationId = 0;
+    if (json.containsKey('consultation_id') && json['consultation_id'] != null) {
+      consultationId = json['consultation_id'];
+    } else if (json.containsKey('id') && json['id'] != null) {
+      consultationId = json['id'];
+    }
+
+    // Handle patient_id field which might be null in some responses
+    int patientId = 0;
+    if (json.containsKey('patient_id') && json['patient_id'] != null) {
+      patientId = json['patient_id'];
+    } else if (json.containsKey('patientId') && json['patientId'] != null) {
+      patientId = json['patientId'];
+    }
+
+    // Handle creation date
+    DateTime createdAt = DateTime.now();
+    if (json.containsKey('created_at') && json['created_at'] != null) {
+      createdAt = DateTime.parse(json['created_at']);
+    } else if (json.containsKey('consultation_created_at') && json['consultation_created_at'] != null) {
+      createdAt = DateTime.parse(json['consultation_created_at']);
+    } else if (json.containsKey('createdAt') && json['createdAt'] != null) {
+      createdAt = DateTime.parse(json['createdAt']);
+    }
+
     return Consultation(
-      id: json['id'],
-      patientId: json['patient_id'],
-      patientName: json['patient_name'],
-      doctorId: json['doctor_id'],
-      doctorName: json['doctor_name'],
-      type: json['type'],
-      description: json['description'],
-      isEmergency: json['is_emergency'] ?? false,
-      status: json['status'],
+      id: consultationId,
+      patientId: patientId,
+      patientName: json['patient_name'] ?? json['patientName'],
+      type: json['type'] ?? 'text',
+      status: json['status'] ?? 'pending',
+      isEmergency: json['is_emergency'] ?? json['isEmergency'] ?? false,
       consultationDate: json['consultation_date'] != null 
           ? DateTime.parse(json['consultation_date']) 
-          : null,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+          : (json['consultationDate'] != null 
+              ? DateTime.parse(json['consultationDate']) 
+              : null),
+      createdAt: createdAt,
+      description: json['description'],
+      symptoms: json['symptoms'],
+      diagnosis: json['diagnosis'],
+      prescription: json['prescription'],
+      notes: json['notes'],
     );
   }
 
@@ -51,15 +82,16 @@ class Consultation {
       'id': id,
       'patient_id': patientId,
       'patient_name': patientName,
-      'doctor_id': doctorId,
-      'doctor_name': doctorName,
       'type': type,
-      'description': description,
-      'is_emergency': isEmergency,
       'status': status,
+      'is_emergency': isEmergency,
       'consultation_date': consultationDate?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'description': description,
+      'symptoms': symptoms,
+      'diagnosis': diagnosis,
+      'prescription': prescription,
+      'notes': notes,
     };
   }
 }

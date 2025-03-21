@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home:const AdminHomePage(), // Set the DoctorConsultationScreen as the home screen
+      home:const LoginScreen(), // Set the DoctorConsultationScreen as the home screen
     );
   }
 }

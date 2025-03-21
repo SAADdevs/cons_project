@@ -1,10 +1,10 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
-const doctorRoutes = require('./routes/doctorRoutes'); // Add this line
+const doctorRoutes = require('./routes/doctorRoutes');
 const errorHandler = require('./middlewares/ErrorMiddleware');
 const consultationRoutes = require('./routes/consultationRoutes');
-
+const upcomingAppointmentsRoutes = require('./routes/upcomingAppointmentsRoutes'); // Add this line
 
 dotenv.config();
 
@@ -17,6 +17,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api', doctorRoutes); 
 app.use('/api/consultations', consultationRoutes);
+app.use('/api/upcoming-appointments', upcomingAppointmentsRoutes); // Add this line
+
 // Global Error Handler
 app.use(errorHandler);
 

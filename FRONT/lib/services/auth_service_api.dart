@@ -5,40 +5,55 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 
 class ApiService {
-  static const String baseUrl = "http://192.168.158.178:5000/api/auth"; // For Android emulator, use your IP for real devices
+  static const String baseUrl = "http://192.168.1.16:5000/api/auth"; // For Android emulator, use your IP for real devices
   static const secureStorage = FlutterSecureStorage();
 
   // Login Function
   static Future<Map<String, dynamic>> login(String email, String password) async {
+  try {
+    print("Attempting login to: $baseUrl/login");
+    print("Payload: ${jsonEncode({"email": email, "password": password})}");
+    
     final response = await http.post(
       Uri.parse("$baseUrl/login"),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"email": email, "password": password}),
     );
 
-    final responseBody = jsonDecode(response.body);
+    print("Login response status: ${response.statusCode}");
+    print("Login response body: ${response.body}");
 
-    if (response.statusCode == 200) {
-      // Store the token in secure storage
-      await secureStorage.write(key: 'auth_token', value: responseBody['token']);
-      
-      // Store user data for later use
-      if (responseBody['user'] != null) {
-        await secureStorage.write(key: 'user_id', value: responseBody['user']['id'].toString());
-        await secureStorage.write(key: 'user_role', value: responseBody['user']['role']);
-        await secureStorage.write(key: 'user_full_name', value: responseBody['user']['full_name']);
-        await secureStorage.write(key: 'user_email', value: responseBody['user']['email']);
+    if (response.body.isNotEmpty) {
+      final responseBody = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        // Store the token in secure storage
+        await secureStorage.write(key: 'auth_token', value: responseBody['token']);
+        
+        // Store user data for later use
+        if (responseBody['user'] != null) {
+          await secureStorage.write(key: 'user_id', value: responseBody['user']['id'].toString());
+          await secureStorage.write(key: 'user_role', value: responseBody['user']['role']);
+          await secureStorage.write(key: 'user_full_name', value: responseBody['user']['full_name']);
+          await secureStorage.write(key: 'user_email', value: responseBody['user']['email']);
+        }
+        
+        return responseBody;
+      } else if (response.statusCode == 403 && 
+                responseBody['message'] == "Doctor account not verified yet") {
+        // Pass through the 403 error with the specific message
+        return responseBody;
+      } else {
+        throw Exception(responseBody['message'] ?? "Failed to login");
       }
-      
-      return responseBody;
-    } else if (response.statusCode == 403 && 
-               responseBody['message'] == "Doctor account not verified yet") {
-      // Pass through the 403 error with the specific message
-      return responseBody;
     } else {
-      throw Exception(responseBody['message'] ?? "Failed to login");
+      throw Exception("Empty response from server");
     }
+  } catch (e) {
+    print("Login exception: $e");
+    throw Exception("Failed to login: $e");
   }
+}
 
   // Register Function
   static Future<Map<String, dynamic>> register({
@@ -95,7 +110,7 @@ class ApiService {
     if (token == null) throw Exception('Authentication token not found');
     
     // Direct URL with doctorId in the path
-    final String url = "http://192.168.158.144:5000/api/doctors/approve/$doctorId";
+    final String url = "http://192.168.1.16:5000/api/doctors/approve/$doctorId";
     
     final response = await http.put(
       Uri.parse(url),

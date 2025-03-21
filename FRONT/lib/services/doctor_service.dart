@@ -33,13 +33,13 @@ class Doctor {
 }
 
 class DoctorService {
-static const String baseUrl = 'http://192.168.158.178:5000/api';
+  static const String baseUrl = 'http://192.168.1.16:5000/api';
   // static const String baseUrl ='http://192.168.1.11:5000/api';  
   
   // Get all doctors with their names using a custom query
   static Future<List<Doctor>> getAllDoctors() async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/doctors/with-names'));
+      final response = await http.get(Uri.parse('$baseUrl/with-names'));
       
       debugPrint('Get doctors status code: ${response.statusCode}');
       
@@ -62,12 +62,12 @@ static const String baseUrl = 'http://192.168.158.178:5000/api';
     }
   }
   
-  // Update doctor availability
+  // Update doctor availability - FIXED URL
   static Future<bool> updateDoctorAvailability(int doctorId, bool isAvailable) async {
     debugPrint('Attempting to update doctor $doctorId availability to $isAvailable');
     
     try {
-      final url = Uri.parse('$baseUrl/doctors/availability');
+      final url = Uri.parse('$baseUrl/doctors/update-availability');
       final body = json.encode({
         'doctor_id': doctorId,
         'is_available': isAvailable,

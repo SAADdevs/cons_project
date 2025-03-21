@@ -1,25 +1,27 @@
-// import 'package:flutter/material.dart';
-// import 'package:my_app/views/appointments/appointments_screen.dart';
-// import 'package:my_app/views/home/home_screen.dart';
-// import 'package:my_app/views/onboarding/onboarding_screen.dart';
-// import 'package:my_app/views/profile/profile_screen.dart';
-// import 'package:my_app/views/auth/login_screen.dart'; // Import the LoginScreen
+// lib/routes/app_routes.dart
 
-// class AppRoutes {
-//   static const String initial = '/';
-//   static const String login = '/login';
-//   static const String register = '/register';
-//   static const String onboarding = '/onboarding';
-//   static const String home = '/home';
-//   static const String appointments = '/appointments';
-//   static const String chat = '/chat';
-//   static const String profile = '/profile';
+class AppRoutes {
+  // Authentication Routes
+  static const String login = '/login';
+  static const String register = '/register';
+  static const String forgotPassword = '/forgot-password';
 
-//   static Map<String, WidgetBuilder> get routes => {
-//     initial: (context) => const OnboardingScreen(), // Define the initial route
-//     login: (context) => const LoginScreen(), // Add the login route
-//     home: (context) => const HomeScreen(),
-//     appointments: (context) => const AppointmentsScreen(),
-//     profile: (context) => const ProfileScreen(),
-//   };
-// }
+  // Doctor Routes
+  static const String doctorHome = '/doctor/home';
+  static const String doctorProfile = '/doctor/profile';
+  static const String doctorConsultations = '/doctor/consultations';
+  static const String upcomingAppointments = '/doctor/appointments';
+  static const String doctorChat = '/doctor/chat';
+  static const String postAdvice = '/doctor/advice';
+  static const String doctorStatistics = '/doctor/statistics';
+
+  // Patient Routes
+  static const String patientHome = '/patient/home';
+  static const String patientProfile = '/patient/profile';
+  static const String patientConsultations = '/patient/consultations';
+
+  // Admin Routes
+  static const String adminHome = '/admin/home';
+  static const String adminDoctors = '/admin/doctors';
+  static const String adminAdvice = '/admin/advice';
+}

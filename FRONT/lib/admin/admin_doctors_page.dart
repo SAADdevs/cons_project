@@ -29,7 +29,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
 
     try {
       // First load doctors
-      final doctorResponse = await http.get(Uri.parse('http://192.168.158.178:5000/api/doctors'));
+      final doctorResponse = await http.get(Uri.parse('http://192.168.1.16:5000/api/doctors'));
       
       if (doctorResponse.statusCode != 200) {
         setState(() => _isLoading = false);
@@ -40,7 +40,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       final doctorsData = json.decode(doctorResponse.body);
       
       // Then load users to get names
-      final userResponse = await http.get(Uri.parse('http://192.168.158.178:5000/api/with-names'));
+      final userResponse = await http.get(Uri.parse('http://192.168.1.16:5000/api/with-names'));
       
       if (userResponse.statusCode != 200) {
         setState(() => _isLoading = false);
@@ -92,7 +92,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
     
     try {
       final endpoint = shouldVerify ? 'approve' : 'unverify';
-      final url = Uri.parse('http://192.168.158.178:5000/api/doctors/$endpoint/$doctorId');
+      final url = Uri.parse('http://192.168.1.16:5000/api/doctors/$endpoint/$doctorId');
       
       final response = await http.put(url);
       

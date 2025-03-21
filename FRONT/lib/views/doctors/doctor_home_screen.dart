@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/views/appointments/UpcomingAppointmentsScreen.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
 import '../../core/models/consultation.dart';
 import '../../services/auth_service_api.dart';
@@ -391,7 +392,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.chat,
           color: Colors.green,
           onTap: () {
-            Navigator.pushNamed(context, '/doctor/chat');
+           Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const  UpcomingAppointmentsScreen()),
+);
           },
         ),
         _buildFeatureCard(
@@ -399,8 +403,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.calendar_today,
           color: Colors.purple,
           onTap: () {
-            Navigator.pushNamed(context, '/doctor/appointments');
-          },
+Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const  UpcomingAppointmentsScreen()),
+);          },
         ),
         _buildFeatureCard(
           title: 'Post Advice',

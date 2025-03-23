@@ -110,4 +110,6 @@ class DoctorService {
       return false;
     }
   }
+
+  static getDoctorsBySpecialty(String specialty) {}
 }

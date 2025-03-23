@@ -7,6 +7,60 @@ import 'dart:math'; // Import for min function
 class ConsultationService {
   static const String baseUrl = "http://192.168.1.16:5000/api"; // Match your API base URL
 
+
+static Future<Consultation> requestConsultation({
+    required int patientId,
+    required int doctorId,
+    required String type,
+    required bool isEmergency,
+    DateTime? consultationDate,
+    String? reason,
+  }) async {
+    try {
+      final token = await ApiService.getAuthToken();
+      if (token == null) throw Exception('Authentication token not found');
+      
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {
+        'user_id': patientId,
+        'doctor_id': doctorId,
+        'type': type,
+        'is_emergency': isEmergency,
+      };
+
+      // Add optional parameters
+      if (consultationDate != null) {
+        requestBody['consultation_date'] = consultationDate.toIso8601String();
+      }
+      
+      if (reason != null) {
+        requestBody['reason'] = reason;
+      }
+      
+      // Make API call
+      final response = await http.post(
+        Uri.parse('$baseUrl/consultations/request'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      );
+      
+      // Check response
+      if (response.statusCode == 201) {
+        final responseBody = jsonDecode(response.body);
+        return Consultation.fromJson(responseBody);
+      } else {
+        // Parse error message from response
+        final responseBody = jsonDecode(response.body);
+        throw Exception(responseBody['message'] ?? 'Failed to request consultation');
+      }
+    } catch (e) {
+      throw Exception('Error requesting consultation: $e');
+    }
+  }
+
   // Fetch pending consultations for a doctor
   static Future<List<Consultation>> fetchPendingConsultations(int doctorId) async {
     try {

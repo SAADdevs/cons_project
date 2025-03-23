@@ -4,6 +4,9 @@ class Consultation {
   final String? patientName;
   final int? patientAge;
   final String? patientGender;
+  final int? doctorId;
+  final String? doctorName;
+  final String? doctorSpecialty;
   final String type;
   final String status;
   final DateTime? consultationDate;
@@ -16,6 +19,9 @@ class Consultation {
     this.patientName,
     this.patientAge,
     this.patientGender,
+    this.doctorId,
+    this.doctorName,
+    this.doctorSpecialty,
     required this.type,
     required this.status,
     this.consultationDate,
@@ -30,6 +36,9 @@ class Consultation {
       patientName: json['patient_name'],
       patientAge: json['patient_age'],
       patientGender: json['patient_gender'],
+      doctorId: json['doctor_id'],
+      doctorName: json['doctor_name'],
+      doctorSpecialty: json['doctor_specialty'],
       type: json['type'] ?? '',
       status: json['status'] ?? '',
       consultationDate: json['consultation_date'] != null ? 
@@ -47,6 +56,9 @@ class Consultation {
       'patient_name': patientName,
       'patient_age': patientAge,
       'patient_gender': patientGender,
+      'doctor_id': doctorId,
+      'doctor_name': doctorName,
+      'doctor_specialty': doctorSpecialty,
       'type': type,
       'status': status,
       'consultation_date': consultationDate?.toIso8601String(),

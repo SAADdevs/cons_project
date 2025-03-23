@@ -53,7 +53,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
               isAvailable = doctorData['is_available'] ?? true;
             });
             
-            // Fetch pending consultations count
+            // Fetch consultations counts
             await _fetchConsultationsCounts();
           }
         }
@@ -77,16 +77,18 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Future<void> _fetchConsultationsCounts() async {
     try {
       if (doctorId != null) {
-        // Fetch pending consultations count using the actual doctor ID
+        // Fetch pending consultations
         final pendingConsultations = await ConsultationService.fetchPendingConsultations(doctorId!);
         
-        // You would need to implement this method in your ConsultationService
-        // final upcomingAppointments = await ConsultationService.fetchUpcomingConsultations(doctorId!);
+        // Fetch upcoming appointments
+        final upcomingAppointments = await ConsultationService.fetchUpcomingConsultations(doctorId!);
         
         setState(() {
           this.pendingConsultations = pendingConsultations.length;
-          // this.upcomingAppointments = upcomingAppointments.length;
+          this.upcomingAppointments = upcomingAppointments.length;
         });
+        
+        print("Updated counts - Pending: ${pendingConsultations.length}, Upcoming: ${upcomingAppointments.length}");
       }
     } catch (e) {
       print('Error fetching consultation counts: $e');
@@ -167,7 +169,6 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     }
   }
 
-  // This is the missing build method that was causing the error
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -315,6 +316,12 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             pendingConsultations.toString(),
             Icons.medical_services,
             Colors.orange,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
+              );
+            },
           ),
         ),
         const SizedBox(width: 16),
@@ -324,45 +331,55 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
             upcomingAppointments.toString(),
             Icons.event,
             Colors.purple,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UpcomingAppointmentsScreen()),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStatsCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
+  Widget _buildStatsCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -403,10 +420,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.calendar_today,
           color: Colors.purple,
           onTap: () {
-Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const  UpcomingAppointmentsScreen()),
-);          },
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const UpcomingAppointmentsScreen()),
+            );
+          },
         ),
         _buildFeatureCard(
           title: 'Post Advice',

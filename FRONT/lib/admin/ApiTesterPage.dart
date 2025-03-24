@@ -11,7 +11,7 @@ class ApiTesterPage extends StatefulWidget {
 }
 
 class _ApiTesterPageState extends State<ApiTesterPage> {
-  final TextEditingController _baseUrlController = TextEditingController(text: 'http://192.168.1.11:5000');
+  final TextEditingController _baseUrlController = TextEditingController(text: 'http://192.168.1.55:5000');
   final TextEditingController _endpointController = TextEditingController(text: '/api/doctors/with-names');
   final TextEditingController _methodController = TextEditingController(text: 'GET');
   final TextEditingController _bodyController = TextEditingController();

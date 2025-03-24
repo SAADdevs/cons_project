@@ -5,7 +5,7 @@ import '../services/auth_service_api.dart';
 import 'dart:math'; // Import for min function
 
 class ConsultationService {
-  static const String baseUrl = "http://192.168.1.16:5000/api"; // Match your API base URL
+  static const String baseUrl = "http://192.168.1.55:5000/api"; // Match your API base URL
 
 
 static Future<Consultation> requestConsultation({

@@ -26,7 +26,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
     try {
       // Fetch all health advice (including unapproved ones)
       final response = await http.get(
-        Uri.parse('http://192.168.1.16:5000/api/health-advice'),
+        Uri.parse('http://192.168.1.55:5000/api/health-advice'),
         headers: {"Content-Type": "application/json"},
       );
       
@@ -68,7 +68,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
   Future<void> _approveAdvice(int id) async {
     try {
       final response = await http.put(
-        Uri.parse('http://192.168.1.16:5000/api/health-advice/approve/$id'),
+        Uri.parse('http://192.168.1.55:5000/api/health-advice/approve/$id'),
         headers: {"Content-Type": "application/json"},
       );
       
@@ -86,7 +86,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
   Future<void> _deleteAdvice(int id) async {
     try {
       final response = await http.delete(
-        Uri.parse('http://192.168.1.16:5000/api/health-advice/$id'),
+        Uri.parse('http://192.168.1.55:5000/api/health-advice/$id'),
         headers: {"Content-Type": "application/json"},
       );
       

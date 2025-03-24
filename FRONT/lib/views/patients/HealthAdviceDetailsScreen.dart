@@ -1,30 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../core/utils/constants.dart';
 import '../../core/models/healthAdvice.dart';
 
 class HealthAdviceDetailsScreen extends StatelessWidget {
   final HealthAdvice advice;
 
-  
   const HealthAdviceDetailsScreen({
-    super.key, 
+    Key? key, 
     required this.advice
-  });
+  }) : super(key: key);
 
-  void _shareAdvice(BuildContext context) {
-    final RenderBox? box = context.findRenderObject() as RenderBox?;
-    
-    Share.share(
-      '${advice.title}\n\n${advice.content}\n\nBy ${advice.doctorName ?? 'Unknown Doctor'}',
-      sharePositionOrigin: box != null 
-        ? (box.localToGlobal(Offset.zero) & box.size) 
-        : null,
-    );
-  }
-
-  @override  Widget build(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -46,15 +34,9 @@ class HealthAdviceDetailsScreen extends StatelessWidget {
               ),
               background: _buildHeaderBackground(),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share, color: Colors.white),
-                onPressed: () => _shareAdvice(context),
-              ),
-            ],
           ),
 
-          // Remaining code is the same as in the previous implementation
+          // Content
           SliverList(
             delegate: SliverChildListDelegate([
               // Doctor Info
@@ -175,6 +157,8 @@ class HealthAdviceDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildAdditionalDetails() {
+    final DateFormat dateFormat = DateFormat('dd MMM yyyy');
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -182,7 +166,7 @@ class HealthAdviceDetailsScreen extends StatelessWidget {
         children: [
           _buildDetailChip(
             icon: Icons.calendar_today,
-            label: DateFormat('dd MMM yyyy').format(advice.createdAt),
+            label: dateFormat.format(advice.createdAt),
           ),
           _buildDetailChip(
             icon: Icons.category,
@@ -244,9 +228,11 @@ class HealthAdviceDetailsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          _buildTakeawayItem('Stay informed about your health'),
-          _buildTakeawayItem('Consult with a healthcare professional'),
-          _buildTakeawayItem('Practice preventive care'),
+          // Extract key points from the content - this is simplified for now
+          // In a real app, you might want to have these stored in the database
+          _buildTakeawayItem('Follow medical professional advice'),
+          _buildTakeawayItem('Maintain a healthy lifestyle'),
+          _buildTakeawayItem('Consult with a doctor regularly'),
         ],
       ),
     );

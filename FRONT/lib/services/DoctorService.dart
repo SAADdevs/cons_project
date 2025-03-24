@@ -6,7 +6,7 @@ import '../core/models/doctor_model.dart';
 import '../services/auth_service_api.dart';
 
 class DoctorService {
-  static const String baseUrl = "http://192.168.1.16:5000/api";
+  static const String baseUrl = "http://192.168.1.55:5000/api";
 
   // Get doctors by specialty
   static Future<List<Doctor>> getDoctorsBySpecialty(String specialty) async {

@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 import 'package:my_app/services/doctor_service.dart';
 import '../core/models/doctor_model.dart';
 import '../services/auth_service_api.dart';
 
 class DoctorService {
-  static const String baseUrl = "http://192.168.1.55:5000/api";
 
   // Get doctors by specialty
   static Future<List<Doctor>> getDoctorsBySpecialty(String specialty) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 import 'dart:convert';
 import 'package:my_app/views/patients/DoctorCategoriesScreen.dart';
 import 'package:my_app/views/patients/DoctorsByCategoryScreen.dart';
@@ -8,6 +9,7 @@ import 'package:my_app/views/patients/MyConsultationsScreen.dart';
 import 'package:my_app/views/patients/HealthAdviceDetailsScreen.dart';
 import 'package:my_app/views/profile/profile_screen.dart';
 import 'package:my_app/core/models/healthAdvice.dart';
+import 'package:my_app/services/auth_service_api.dart'; // Import auth service
 import '../../core/utils/constants.dart';
 
 class PatientHomeScreen extends StatefulWidget {
@@ -19,25 +21,37 @@ class PatientHomeScreen extends StatefulWidget {
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   int _selectedIndex = 0;
+
+  // Add a fourth page for the chat tab
+  late final List<Widget> _pages;
   
-  // Define the pages for bottom navigation
-  final List<Widget> _pages = [
-    const PatientHomePage(),
-    const MyConsultationsScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      const PatientHomePage(),
+      const MyConsultationsScreen(),
+      const Center(child: Text('Chat feature coming soon')), // Placeholder for Chat tab
+      const ProfileScreen(),
+    ];
+  }
   
   @override
   Widget build(BuildContext context) {
     // Set status bar color
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: AppColors.primary,
+      statusBarColor: Colors.transparent, // Make status bar transparent
       statusBarIconBrightness: Brightness.light,
     ));
 
     return Scaffold(
+      extendBodyBehindAppBar: true, // Extend content behind app bar
       backgroundColor: Colors.white,
-      body: _pages[_selectedIndex],
+      // Use IndexedStack to maintain page state when switching tabs
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }
@@ -91,120 +105,202 @@ class PatientHomePage extends StatefulWidget {
 class _PatientHomePageState extends State<PatientHomePage> {
   List<HealthAdvice> _healthTips = [];
   bool _isLoadingTips = true;
+  bool _isLoadingUserData = true;
   String _errorMessage = '';
+  bool _showError = false;
+  String _patientName = '';
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _loadUserData();
     _loadHealthTips();
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Load the current user's name
+  Future<void> _loadUserData() async {
+    try {
+      final name = await ApiService.getUserFullName();
+      
+      setState(() {
+        // Extract first name if there's a space in the full name
+        if (name != null && name.isNotEmpty) {
+          final nameParts = name.split(' ');
+          _patientName = nameParts.first.toLowerCase(); // Convert to lowercase to match design
+        } else {
+          _patientName = 'patient'; // Default if no name is found, lowercase to match design
+        }
+        _isLoadingUserData = false;
+        _showError = false;
+      });
+    } catch (e) {
+      print('Error loading user data: $e');
+      setState(() {
+        _patientName = 'patient'; // Default in case of error
+        _isLoadingUserData = false;
+      });
+    }
   }
 
   Future<void> _loadHealthTips() async {
-  setState(() {
-    _isLoadingTips = true;
-    _errorMessage = '';
-  });
+    setState(() {
+      _isLoadingTips = true;
+      _errorMessage = '';
+      _showError = false;
+    });
 
-  try {
-    // Use the approved endpoint since it's working
-    final response = await http.get(
-      Uri.parse('http://192.168.1.55:5000/api/health-advice/approved'),
-      headers: {"Content-Type": "application/json"},
-    );
+    try {
+      // Use the approved endpoint
+      final response = await http.get(
+        Uri.parse('$baseUrl/health-advice/approved'),
+        headers: {"Content-Type": "application/json"},
+      );
 
-    print('Response status: ${response.statusCode}');
-    
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      print('Parsed ${data.length} health tips');
+      print('Health tips response status: ${response.statusCode}');
       
-      List<HealthAdvice> tips = [];
-      
-      for (var item in data) {
-        tips.add(
-          HealthAdvice(
-            id: item['id'] ?? 0,
-            doctorId: item['doctor_id'] ?? 0,
-            title: item['title'] ?? 'Untitled',
-            content: item['advice_text'] ?? '',
-            category: item['category'] ?? 'General',
-            isApproved: item['is_approved'] ?? false,
-            createdAt: item['created_at'] != null 
-                ? DateTime.parse(item['created_at']) 
-                : DateTime.now(),
-            doctorName: item['doctor_name'] ?? 'Unknown Doctor',
-            doctorSpecialty: item['specialties'] ?? '',
-          )
-        );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        print('Parsed ${data.length} health tips');
+        
+        List<HealthAdvice> tips = [];
+        
+        for (var item in data) {
+          tips.add(
+            HealthAdvice(
+              id: item['id'] ?? 0,
+              doctorId: item['doctor_id'] ?? 0,
+              title: item['title'] ?? 'Untitled',
+              content: item['advice_text'] ?? '',
+              category: item['category'] ?? 'General',
+              isApproved: item['is_approved'] ?? false,
+              createdAt: item['created_at'] != null 
+                  ? DateTime.parse(item['created_at']) 
+                  : DateTime.now(),
+              doctorName: item['doctor_name'] ?? 'Unknown Doctor',
+              doctorSpecialty: item['specialties'] ?? '',
+            )
+          );
+        }
+        
+        setState(() {
+          _healthTips = tips;
+          _isLoadingTips = false;
+          _showError = false;
+        });
+        
+        print('Successfully loaded ${_healthTips.length} health tips');
+      } else {
+        setState(() {
+          _errorMessage = 'Failed to load health tips: ${response.statusCode}';
+          _isLoadingTips = false;
+          
+          // We'll show health tips UI anyway, just without data
+          _healthTips = [];
+        });
       }
-      
+    } catch (e) {
+      print('Error loading health tips: $e');
       setState(() {
-        _healthTips = tips;
+        _errorMessage = 'Error: $e';
         _isLoadingTips = false;
-      });
-      
-      print('Successfully loaded ${_healthTips.length} health tips');
-    } else {
-      setState(() {
-        _errorMessage = 'Failed to load health tips: ${response.statusCode}';
-        _isLoadingTips = false;
+        _healthTips = []; // Empty list instead of null
       });
     }
-  } catch (e) {
-    print('Error loading health tips: $e');
-    setState(() {
-      _errorMessage = 'Error: $e';
-      _isLoadingTips = false;
-    });
   }
-}
+  
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _loadHealthTips,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Personalized Header
-            SliverToBoxAdapter(
-              child: _buildHeader(context),
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Refresh both user data and health tips
+        await Future.wait([
+          _loadUserData(),
+          _loadHealthTips(),
+        ]);
+      },
+      child: Stack(
+        children: [
+          SingleChildScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                // Header at the very top of screen
+                _buildHeader(context),
+        
+                // Search Bar
+                _buildSearchBar(),
+        
+                // Quick Services
+                _buildQuickServicesSection(context),
+        
+                // Medical Specialties
+                _buildSectionTitle('Medical Specialties'),
+                _buildMedicalSpecialtiesGrid(context),
+        
+                // Health Tips Section
+                _buildSectionTitle('Health Tips'),
+                _buildHealthTipsCarousel(),
+                
+                // Add bottom padding to ensure content is not hidden behind the navigation bar
+                const SizedBox(height: 30),
+              ],
             ),
-
-            // Search Bar
-            SliverToBoxAdapter(
-              child: _buildSearchBar(),
+          ),
+          
+          // Error notification that doesn't block the UI
+          if (_showError)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.red.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Could not load patient info. Using local data.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _showError = false;
+                        });
+                      },
+                    )
+                  ],
+                ),
+              ),
             ),
-
-            // Quick Services
-            SliverToBoxAdapter(
-              child: _buildQuickServicesSection(context),
-            ),
-
-            // Medical Specialties
-            SliverToBoxAdapter(
-              child: _buildSectionTitle('Medical Specialties'),
-            ),
-            SliverToBoxAdapter(
-              child: _buildMedicalSpecialtiesGrid(context),
-            ),
-
-            // Health Tips Section
-            SliverToBoxAdapter(
-              child: _buildSectionTitle('Health Tips'),
-            ),
-            SliverToBoxAdapter(
-              child: _buildHealthTipsCarousel(),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        left: 16, 
+        right: 16, 
+        // Add padding at the top for status bar
+        top: MediaQuery.of(context).padding.top + 20,
+        bottom: 20
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.primary, Colors.blue.shade600],
@@ -222,14 +318,20 @@ class _PatientHomePageState extends State<PatientHomePage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Hello, Sarah',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
+              _isLoadingUserData 
+                ? const SizedBox(
+                    height: 20, 
+                    width: 100, 
+                    child: LinearProgressIndicator(backgroundColor: Colors.white24, color: Colors.white)
+                  )
+                : Text(
+                    'Hello, $_patientName',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
               const SizedBox(height: 8),
               Text(
                 'Find Your Doctor',
@@ -338,6 +440,9 @@ class _PatientHomePageState extends State<PatientHomePage> {
             color: Colors.purple,
             onTap: () {
               // Chat functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Chat feature coming soon!')),
+              );
             },
           ),
         ],
@@ -535,32 +640,7 @@ class _PatientHomePageState extends State<PatientHomePage> {
       );
     }
     
-    if (_errorMessage.isNotEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-          child: Column(
-            children: [
-              Text(
-                'Failed to load health tips',
-                style: TextStyle(
-                  color: Colors.red[700],
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(_errorMessage, style: TextStyle(color: Colors.grey[600])),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadHealthTips,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    
+    // Instead of showing an error, we'll just show empty state
     if (_healthTips.isEmpty) {
       return Center(
         child: Padding(

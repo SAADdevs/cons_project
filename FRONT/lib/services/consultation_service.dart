@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 import '../core/models/consultation.dart';
 import '../services/auth_service_api.dart';
 import 'dart:math'; // Import for min function
 
 class ConsultationService {
-  static const String baseUrl = "http://192.168.1.55:5000/api"; // Match your API base URL
 
 
 static Future<Consultation> requestConsultation({

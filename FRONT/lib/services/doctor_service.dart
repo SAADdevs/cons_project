@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 
 class Doctor {
   final int id;
@@ -33,7 +34,6 @@ class Doctor {
 }
 
 class DoctorService {
-  static const String baseUrl = 'http://192.168.1.55:5000/api';
   // static const String baseUrl ='http://192.168.1.11:5000/api';  
   
   // Get all doctors with their names using a custom query

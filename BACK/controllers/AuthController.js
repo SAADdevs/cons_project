@@ -115,10 +115,12 @@ class AuthController {
     }
 
     static async updateUserProfile(req, res) {
-        const userId = req.user.id;
-        const { full_name, email } = req.body;
-        
         try {
+            const userId = req.user.id; // From the authentication middleware
+            const { full_name, email } = req.body;
+            
+            console.log(`Updating user profile for user_id ${userId}: Full Name: ${full_name}, Email: ${email}`);
+            
             // Check if email is already in use by another user
             if (email) {
                 const existingUser = await User.getUserByEmail(email);

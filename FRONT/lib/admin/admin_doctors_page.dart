@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:my_app/basrel.dart';
+
 class AdminDoctorsPage extends StatefulWidget {
   const AdminDoctorsPage({Key? key}) : super(key: key);
 
@@ -9,7 +11,8 @@ class AdminDoctorsPage extends StatefulWidget {
   State<AdminDoctorsPage> createState() => _AdminDoctorsPageState();
 }
 
-class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
+class _AdminDoctorsPageState extends State<AdminDoctorsPage> {  
+
   bool _isLoading = true;
   List<dynamic> _allDoctors = [];
   String _searchQuery = '';
@@ -29,7 +32,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
 
     try {
       // First load doctors
-      final doctorResponse = await http.get(Uri.parse('http://192.168.1.55:5000/api/doctors'));
+      final doctorResponse = await http.get(Uri.parse('$baseUrl/doctors'));
       
       if (doctorResponse.statusCode != 200) {
         setState(() => _isLoading = false);
@@ -40,7 +43,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       final doctorsData = json.decode(doctorResponse.body);
       
       // Then load users to get names
-      final userResponse = await http.get(Uri.parse('http://192.168.1.55:5000/api/with-names'));
+      final userResponse = await http.get(Uri.parse('$baseUrl/api/with-names'));
       
       if (userResponse.statusCode != 200) {
         setState(() => _isLoading = false);
@@ -92,7 +95,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
     
     try {
       final endpoint = shouldVerify ? 'approve' : 'unverify';
-      final url = Uri.parse('http://192.168.1.55:5000/api/doctors/$endpoint/$doctorId');
+      final url = Uri.parse('$baseUrl/doctors/$endpoint/$doctorId');
       
       final response = await http.put(url);
       

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/basrel.dart';
 import 'admin_doctors_page.dart';
 import 'admin_advice_page.dart';
 import 'package:http/http.dart' as http;
@@ -32,14 +33,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   setState(() => _isLoading = true);
   
   try {
-    // You can use either the token-based approach or remove token for testing
-    // final token = await ApiService.getAuthToken();
-    // 
-    // if (token == null) {
-    //   throw Exception('Authentication token not found');
-    // }
     
-    const baseUrl = 'http://192.168.1.55:5000/api/statistics';
     
     // Fetch all dashboard statistics in one call
     final response = await http.get(

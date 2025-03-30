@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart' show baseUrl;
 import 'package:my_app/views/appointments/UpcomingAppointmentsScreen.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
+import '../../basrel.dart';
 import '../../core/models/consultation.dart';
 import '../../services/auth_service_api.dart';
 import '../../services/consultation_service.dart';
@@ -39,7 +41,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         final token = await ApiService.getAuthToken();
         if (token != null) {
           final response = await http.get(
-            Uri.parse("${ApiService.baseUrl}/doctor"),
+            Uri.parse("$baseUrl/doctor"),
             headers: {
               "Content-Type": "application/json",
               "Authorization": "Bearer $token"
@@ -72,8 +74,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         setState(() => isLoading = false);
       }
     }
-  }
-  
+
+  }  
   Future<void> _fetchConsultationsCounts() async {
     try {
       if (doctorId != null) {
@@ -118,7 +120,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       print("Doctor ID: $doctorId, Current availability: $isAvailable");
       
       // Print the request URL and body for debugging
-      final url = "${ApiService.baseUrl}/doctors/update-availability";
+
+      final url = "$baseUrl/doctors/update-availability";
       final body = {
         "doctor_id": doctorId,
         "is_available": !isAvailable
@@ -167,9 +170,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         setState(() => isLoading = false);
       }
     }
-  }
 
-  @override
+
+  }  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(

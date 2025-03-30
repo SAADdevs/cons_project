@@ -51,51 +51,46 @@ class AuthController {
         }
     }
     
-    static async loginUser(req, res) {
-        const { email, password } = req.body;
-        
-        try {
-            const user = await User.getUserByEmail(email);
-            if (!user) {
-                return res.status(401).json({ message: "Invalid credentials" });
-            }
-            
-            const validPassword = await bcrypt.compare(password, user.password);
-            if (!validPassword) {
-                return res.status(401).json({ message: "Invalid credentials" });
-            }
-            
-            if (user.role === 'doctor') {
-                const isVerified = await Doctor.isDoctorVerified(user.id);
-                if (!isVerified) {
-                    return res.status(403).json({ message: "Doctor account not verified yet" });
-                }
-            }
-            
-            // Generate JWT token
-            const token = jwt.sign(
-                { id: user.id, role: user.role },
-                process.env.JWT_SECRET,
-                { expiresIn: '7d' }
-            );
-            
-            res.json({ 
-                message: "Login successful", 
-                token, 
-                user: {
-                    id: user.id,
-                    full_name: user.full_name,
-                    email: user.email,
-                    role: user.role
-                }
-            });
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Server error" });
+    // In your AuthController.js - loginUser function
+static async loginUser(req, res) {
+    const { email, password } = req.body;
+    
+    try {
+        const user = await User.getUserByEmail(email);
+        if (!user) {
+            return res.status(401).json({ message: "Invalid credentials" });
         }
+        
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        
+        // Debug - log the role to see what's happening
+        console.log("User role from database:", user.role);
+        
+        // Generate JWT token with role included
+        const token = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+        
+        res.json({ 
+            message: "Login successful", 
+            token, 
+            user: {
+                id: user.id,
+                full_name: user.full_name,
+                email: user.email,
+                role: user.role  // Make sure role is included here
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
     }
-
-    static async getUserProfile(req, res) {
+}    static async getUserProfile(req, res) {
         try {
             const userId = req.user.id;
             const user = await User.getUserById(userId);

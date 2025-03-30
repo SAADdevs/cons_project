@@ -28,26 +28,32 @@ class PatientController {
 
     // Get doctors by specialty
     static async getDoctorsBySpecialty(req, res) {
+        const { specialty } = req.params; 
         try {
-            const { specialty } = req.params;
-            
-            // Query to get doctors by specialty
-            const query = `
-                SELECT d.id, d.user_id, d.specialties, d.hospital, u.full_name
-                FROM doctors d
-                JOIN users u ON d.user_id = u.id
-                WHERE d.specialties ILIKE $1 AND d.is_available = true AND d.is_verified = true
-            `;
-            
-            const result = await pool.query(query, [`%${specialty}%`]);
+            const result = await pool.query(`
+                SELECT 
+                    d.id, 
+                    d.user_id, 
+                    u.full_name,  // Add this line to fetch full name
+                    d.specialties, 
+                    d.hospital,
+                    d.is_verified, 
+                    d.is_available
+                FROM 
+                    doctors d
+                JOIN 
+                    users u ON d.user_id = u.id  // Add join with users table
+                WHERE 
+                    d.specialties LIKE $1
+            `, [`%${specialty}%`]);    
             
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: "No doctors found with that specialty" });
             }
-            
+    
             res.status(200).json(result.rows);
         } catch (error) {
-            console.error('Error getting doctors by specialty:', error);
+            console.error(error);
             res.status(500).json({ message: "Server error" });
         }
     }

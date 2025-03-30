@@ -4,47 +4,49 @@ const Doctor = require('../Models/Doctor');
 
 class UpcomingAppointmentController {
     // Get upcoming appointments for a doctor
-    static async getDoctorUpcomingAppointments(req, res) {
-        try {
-            const doctorId = req.params.doctor_id;
-            console.log('Received request for doctor_id:', doctorId);
-            
-            // Validate doctor ID
-            const doctor = await Doctor.getDoctorById(doctorId);
-            if (!doctor) {
-                console.log(`Doctor with ID ${doctorId} not found`);
-                return res.status(404).json({ message: "Doctor not found" });
-            }
-            
-            console.log(`Found doctor with ID ${doctorId}, proceeding to fetch appointments`);
-            
-            // Fetch upcoming appointments
-            const appointments = await UpcomingAppointment.getDoctorUpcomingAppointments(doctorId);
-            
-            console.log(`Returning ${appointments.length} appointments`);
-            res.status(200).json(appointments);
-        } catch (error) {
-            console.error('Error in getDoctorUpcomingAppointments:', error);
-            res.status(500).json({ 
-                message: "Server error", 
-                error: error.message 
-            });
+   // In controllers/UpcomingAppointmentController.js
+static async getDoctorUpcomingAppointments(req, res) {
+    try {
+        const userId = req.params.doctor_id;
+        console.log('Received request for user_id:', userId);
+        
+        // First get the doctor record by user ID
+        const doctor = await Doctor.getDoctorByUserId(userId);
+        if (!doctor) {
+            console.log(`Doctor with user ID ${userId} not found`);
+            return res.status(404).json({ message: "Doctor not found" });
         }
+        
+        const doctorId = doctor.id;
+        console.log(`Found doctor ID ${doctorId} for user ID ${userId}, proceeding to fetch appointments`);
+        
+        // Fetch upcoming appointments using the doctor ID
+        const appointments = await UpcomingAppointment.getDoctorUpcomingAppointments(doctorId);
+        
+        console.log(`Returning ${appointments.length} appointments`);
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error('Error in getDoctorUpcomingAppointments:', error);
+        res.status(500).json({ 
+            message: "Server error", 
+            error: error.message 
+        });
     }
+}
 
     // Count upcoming appointments for a doctor
     static async countDoctorUpcomingAppointments(req, res) {
         try {
-            const doctorId = req.params.doctor_id;
+            const userId = req.params.doctor_id;
             
-            // Validate doctor ID
-            const doctor = await Doctor.getDoctorById(doctorId);
+            // Get the doctor record by user ID
+            const doctor = await Doctor.getDoctorByUserId(userId);
             if (!doctor) {
                 return res.status(404).json({ message: "Doctor not found" });
             }
             
-            // Count upcoming appointments
-            const upcomingCount = await UpcomingAppointment.countDoctorUpcomingAppointments(doctorId);
+            // Count upcoming appointments with the doctor ID
+            const upcomingCount = await UpcomingAppointment.countDoctorUpcomingAppointments(doctor.id);
             
             res.status(200).json({ upcoming_count: upcomingCount });
         } catch (error) {

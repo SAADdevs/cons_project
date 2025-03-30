@@ -7,7 +7,8 @@ const errorHandler = require('./middlewares/ErrorMiddleware');
 const consultationRoutes = require('./routes/consultationRoutes');
 const upcomingAppointmentsRoutes = require('./routes/upcomingAppointmentsRoutes');
 const healthAdviceRoutes = require('./routes/healthAdviceRoutes');
-const statisticsRoutes = require('./routes/statisticsRoutes'); // Import statistics routes
+const statisticsRoutes = require('./routes/statisticsRoutes'); 
+const chatRoutes = require('./routes/chatRoutes'); // Add the chat routes
 
 dotenv.config();
 
@@ -34,7 +35,8 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/upcoming-appointments', upcomingAppointmentsRoutes); 
 app.use('/api/health-advice', healthAdviceRoutes);
-app.use('/api/statistics', statisticsRoutes); // Add the statistics routes
+app.use('/api/statistics', statisticsRoutes);
+app.use('/api/chat', chatRoutes); // Add the chat routes
 
 // Global Error Handler
 app.use(errorHandler);

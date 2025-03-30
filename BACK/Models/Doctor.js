@@ -41,6 +41,34 @@ class Doctor {
         );
         return result.rows[0]; // Return updated doctor data
     }
+    // Add this to models/Doctor.js
+static async getDoctorByUserId(userId) {
+    try {
+        const result = await pool.query("SELECT * FROM doctors WHERE user_id = $1", [userId]);
+        return result.rows[0]; // return the first result (or null if not found)
+    } catch (error) {
+        console.error("Error getting doctor by user ID:", error);
+        throw error;
+    }
+}
+
+static async getDoctorByUserId(userId) {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM doctors WHERE user_id = $1",
+            [userId]
+        );
+        
+        if (result.rows.length === 0) {
+            return null;
+        }
+        
+        return result.rows[0];
+    } catch (error) {
+        console.error("Error in getDoctorByUserId:", error);
+        throw error;
+    }
+}
 }
 
 module.exports = Doctor;

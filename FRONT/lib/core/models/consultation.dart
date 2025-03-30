@@ -1,92 +1,79 @@
+// lib/core/models/consultation.dart
+
 class Consultation {
   final int id;
-  final String status;
-  final String type;
-  final bool isEmergency;
-  final DateTime? consultationDate;
-  final DateTime? createdAt;
-  
-  // Patient info
   final int patientId;
   final String? patientName;
-  
-  // Doctor info (may need to be fetched separately)
-  final int? doctorId;
+  final int doctorId;
   final String? doctorName;
   final String? doctorSpecialty;
-  
-  // Extra fields from API that might be useful
-  final String? patientEmail;
-  final int? patientAge;
-  final String? patientGender;
+  final String type;
+  final String status;
+  final bool isEmergency;
+  final dynamic consultationDate;
+  final dynamic createdAt;
 
   Consultation({
     required this.id,
-    required this.status,
-    required this.type,
-    required this.isEmergency,
     required this.patientId,
-    this.consultationDate,
-    this.createdAt,
     this.patientName,
-    this.doctorId,
+    required this.doctorId,
     this.doctorName,
     this.doctorSpecialty,
-    this.patientEmail,
-    this.patientAge,
-    this.patientGender,
+    required this.type,
+    required this.status,
+    required this.isEmergency,
+    this.consultationDate,
+    this.createdAt,
   });
 
   factory Consultation.fromJson(Map<String, dynamic> json) {
     return Consultation(
-      // Map consultation_id to id
-      id: json['consultation_id'] ?? json['id'] ?? 0,
-      
-      // Basic consultation fields
-      status: json['status'] ?? 'pending',
-      type: json['type'] ?? 'text',
-      isEmergency: json['is_emergency'] ?? false,
-      
-      // Date fields - handle both string and DateTime
-      consultationDate: json['consultation_date'] != null 
-          ? json['consultation_date'] is String 
-              ? DateTime.parse(json['consultation_date']) 
-              : json['consultation_date']
-          : null,
-      
-      createdAt: json['consultation_created_at'] != null || json['created_at'] != null
-          ? (json['consultation_created_at'] ?? json['created_at']) is String
-              ? DateTime.parse(json['consultation_created_at'] ?? json['created_at'])
-              : (json['consultation_created_at'] ?? json['created_at'])
-          : DateTime.now(),
-      
-      // Patient info
+      id: json['id'] ?? json['consultation_id'] ?? 0,
       patientId: json['patient_id'] ?? 0,
       patientName: json['patient_name'],
-      patientEmail: json['email'],
-      patientAge: json['age'],
-      patientGender: json['gender'],
-      
-      // Doctor info - might need to be fetched separately
-      doctorId: json['doctor_id'],
-      doctorName: json['doctor_name'] ?? json['doctor_full_name'],
-      doctorSpecialty: json['doctor_specialty'] ?? json['specialty'],
+      doctorId: json['doctor_id'] ?? 0,
+      doctorName: json['doctor_name'],
+      doctorSpecialty: json['doctor_specialty'] ?? json['specialties'],
+      type: json['type'] ?? 'unknown',
+      status: json['status'] ?? 'pending',
+      isEmergency: json['is_emergency'] ?? false,
+      consultationDate: json['consultation_date'],
+      createdAt: json['created_at'] ?? json['consultation_created_at'],
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'status': status,
-      'type': type,
-      'is_emergency': isEmergency,
-      'consultation_date': consultationDate?.toIso8601String(),
-      'created_at': createdAt?.toIso8601String(),
-      'patient_id': patientId,
-      'patient_name': patientName,
-      'doctor_id': doctorId,
-      'doctor_name': doctorName,
-      'doctor_specialty': doctorSpecialty,
-    };
+  // Helper method to safely get consultation date as DateTime
+  DateTime? getConsultationDateTime() {
+    if (consultationDate == null) return null;
+    
+    try {
+      if (consultationDate is DateTime) {
+        return consultationDate;
+      } else if (consultationDate is String) {
+        return DateTime.parse(consultationDate);
+      }
+      return null;
+    } catch (e) {
+      print('Error parsing consultation date: $e');
+      return null;
+    }
+  }
+
+  // Helper method to safely get created date as DateTime
+  DateTime? getCreatedAtDateTime() {
+    if (createdAt == null) return null;
+    
+    try {
+      if (createdAt is DateTime) {
+        return createdAt;
+      } else if (createdAt is String) {
+        return DateTime.parse(createdAt);
+      }
+      return null;
+    } catch (e) {
+      print('Error parsing created date: $e');
+      return null;
+    }
   }
 }

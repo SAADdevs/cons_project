@@ -74,6 +74,31 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
     }
   }
 
+  // Safe date formatting helper
+  String _formatDate(dynamic dateValue) {
+    try {
+      if (dateValue == null) {
+        return 'Date not available';
+      }
+      
+      DateTime? dateTime;
+      if (dateValue is DateTime) {
+        dateTime = dateValue;
+      } else if (dateValue is String) {
+        dateTime = DateTime.parse(dateValue);
+      }
+      
+      if (dateTime != null) {
+        return _dateFormat.format(dateTime);
+      } else {
+        return 'Invalid date format';
+      }
+    } catch (e) {
+      print('Error formatting date: $e');
+      return 'Date format error';
+    }
+  }
+
   // Show date and time picker when accepting a consultation
   Future<void> _showDateTimePicker(int consultationId) async {
     // Pick date
@@ -174,40 +199,39 @@ class _DoctorConsultationScreenState extends State<DoctorConsultationScreen> {
   }
 
   @override
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Pending Consultations'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const  DoctorHomeScreen()),
-);
-        },
-        tooltip: 'Back to Home',
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: _fetchConsultations,
-          tooltip: 'Refresh',
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pending Consultations'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
+            );
+          },
+          tooltip: 'Back to Home',
         ),
-      ],
-    ),
-    body: _doctorId == null
-        ? _buildDoctorIdError()
-        : (_isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : consultations.isEmpty
-                ? _buildEmptyState()
-                : _buildConsultationsList()),
-  );
-}
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchConsultations,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+      body: _doctorId == null
+          ? _buildDoctorIdError()
+          : (_isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : consultations.isEmpty
+                  ? _buildEmptyState()
+                  : _buildConsultationsList()),
+    );
+  }
 
   Widget _buildDoctorIdError() {
     return Center(
@@ -325,14 +349,12 @@ Widget build(BuildContext context) {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              consultation.patientName != null 
-                                  ? '${consultation.patientName}'
-                                  : 'Patient ID: ${consultation.patientId}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                            consultation.patientName ?? 'Patient ID: ${consultation.patientId}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
                             ),
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             'Type: ${consultation.type}',
@@ -376,7 +398,7 @@ Widget build(BuildContext context) {
                 const Divider(),
                 const SizedBox(height: 8),
                 Text(
-                   'Created: ${_dateFormat.format(DateTime.parse(consultation.createdAt.toString()))}',
+                  'Created: ${_formatDate(consultation.createdAt)}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 14,
@@ -387,14 +409,14 @@ Widget build(BuildContext context) {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton.icon(
-  icon: const Icon(Icons.close),
-  label: const Text('Refuse'),
-  onPressed: () => _updateConsultationStatus(consultation.id, 'rejected'), // Change from 'refused' to 'rejected'
-  style: OutlinedButton.styleFrom(
-    foregroundColor: Colors.red,
-    side: const BorderSide(color: Colors.red),
-  ),
-),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Refuse'),
+                      onPressed: () => _updateConsultationStatus(consultation.id, 'rejected'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.check),

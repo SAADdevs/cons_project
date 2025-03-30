@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:my_app/basrel.dart' show baseUrl;
+import 'package:my_app/services/consultation_service.dart';
 import 'package:my_app/views/appointments/UpcomingAppointmentsScreen.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
 import '../../basrel.dart';
-import '../../core/models/consultation.dart';
 import '../../services/auth_service_api.dart';
-import '../../services/consultation_service.dart';
+import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -562,3 +562,4 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     );
   }
 }
+

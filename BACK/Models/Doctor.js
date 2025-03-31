@@ -6,7 +6,7 @@ class Doctor {
     static async createDoctor(userId, IMPE, specialties, hospital) {
         const query = `
             INSERT INTO doctors (user_id, IMPE, specialties, hospital, is_verified, is_available) 
-            VALUES ($1, $2, $3, $4, $5, $6)`;
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
         const result = await pool.query(query, [userId, IMPE, specialties, hospital, false, true]); // Initially unverified
         return result.rows[0];
     }
@@ -41,34 +41,43 @@ class Doctor {
         );
         return result.rows[0]; // Return updated doctor data
     }
-    // Add this to models/Doctor.js
-static async getDoctorByUserId(userId) {
-    try {
-        const result = await pool.query("SELECT * FROM doctors WHERE user_id = $1", [userId]);
-        return result.rows[0]; // return the first result (or null if not found)
-    } catch (error) {
-        console.error("Error getting doctor by user ID:", error);
-        throw error;
-    }
-}
-
-static async getDoctorByUserId(userId) {
-    try {
-        const result = await pool.query(
-            "SELECT * FROM doctors WHERE user_id = $1",
-            [userId]
-        );
-        
-        if (result.rows.length === 0) {
-            return null;
+    
+    // Get doctor by user ID (fixed - removed duplicate)
+    static async getDoctorByUserId(userId) {
+        try {
+            const result = await pool.query(
+                "SELECT * FROM doctors WHERE user_id = $1",
+                [userId]
+            );
+            
+            if (result.rows.length === 0) {
+                return null;
+            }
+            
+            return result.rows[0];
+        } catch (error) {
+            console.error("Error in getDoctorByUserId:", error);
+            throw error;
         }
-        
-        return result.rows[0];
-    } catch (error) {
-        console.error("Error in getDoctorByUserId:", error);
-        throw error;
     }
-}
+    
+    // Get doctors by specialty with their names
+    static async getDoctorsBySpecialtyWithNames(specialty) {
+        try {
+            const result = await pool.query(`
+                SELECT d.*, u.full_name 
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+                WHERE d.specialties ILIKE $1 AND d.is_verified = true
+                ORDER BY u.full_name
+            `, [`%${specialty}%`]);
+            
+            return result.rows;
+        } catch (error) {
+            console.error("Error getting doctors by specialty with names:", error);
+            throw error;
+        }
+    }
 }
 
 module.exports = Doctor;

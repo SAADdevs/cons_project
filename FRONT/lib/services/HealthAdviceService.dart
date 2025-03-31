@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 import 'package:my_app/core/models/healthAdvice.dart';
 import '../core/models/healthAdvice.dart';
 import '../services/auth_service_api.dart';
 
 class HealthAdviceService {
-  static const String baseUrl = "http://192.168.1.16:5000/api";
 
   // Get all health advices
   static Future<List<HealthAdvice>> getAllHealthAdvices() async {
@@ -81,4 +81,5 @@ class HealthAdviceService {
       throw Exception('Network error: $e');
     }
   }
+  
 }

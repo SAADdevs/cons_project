@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:my_app/basrel.dart';
+
 class AdminAdvicePage extends StatefulWidget {
   const AdminAdvicePage({Key? key}) : super(key: key);
 
@@ -13,7 +15,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
   bool _isLoading = true;
   List<dynamic> _allAdvice = [];
   String _searchQuery = '';
-  
+
   @override
   void initState() {
     super.initState();
@@ -26,7 +28,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
     try {
       // Fetch all health advice (including unapproved ones)
       final response = await http.get(
-        Uri.parse('http://192.168.1.16:5000/api/health-advice'),
+        Uri.parse('$baseUrl/health-advice'),
         headers: {"Content-Type": "application/json"},
       );
       
@@ -68,7 +70,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
   Future<void> _approveAdvice(int id) async {
     try {
       final response = await http.put(
-        Uri.parse('http://192.168.1.16:5000/api/health-advice/approve/$id'),
+        Uri.parse('$baseUrl/health-advice/approve/$id'),
         headers: {"Content-Type": "application/json"},
       );
       
@@ -86,7 +88,7 @@ class _AdminAdvicePageState extends State<AdminAdvicePage> {
   Future<void> _deleteAdvice(int id) async {
     try {
       final response = await http.delete(
-        Uri.parse('http://192.168.1.16:5000/api/health-advice/$id'),
+        Uri.parse('$baseUrl/health-advice/$id'),
         headers: {"Content-Type": "application/json"},
       );
       

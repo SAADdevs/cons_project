@@ -1,69 +1,92 @@
 class Consultation {
   final int id;
+  final String status;
+  final String type;
+  final bool isEmergency;
+  final DateTime? consultationDate;
+  final DateTime? createdAt;
+  
+  // Patient info
   final int patientId;
   final String? patientName;
-  final int? patientAge;
-  final String? patientGender;
+  
+  // Doctor info (may need to be fetched separately)
   final int? doctorId;
   final String? doctorName;
   final String? doctorSpecialty;
-  final String type;
-  final String status;
-  final DateTime? consultationDate;
-  final bool isEmergency;
-  final DateTime? createdAt;
+  
+  // Extra fields from API that might be useful
+  final String? patientEmail;
+  final int? patientAge;
+  final String? patientGender;
 
   Consultation({
     required this.id,
+    required this.status,
+    required this.type,
+    required this.isEmergency,
     required this.patientId,
+    this.consultationDate,
+    this.createdAt,
     this.patientName,
-    this.patientAge,
-    this.patientGender,
     this.doctorId,
     this.doctorName,
     this.doctorSpecialty,
-    required this.type,
-    required this.status,
-    this.consultationDate,
-    required this.isEmergency,
-    this.createdAt,
+    this.patientEmail,
+    this.patientAge,
+    this.patientGender,
   });
 
   factory Consultation.fromJson(Map<String, dynamic> json) {
     return Consultation(
-      id: json['consultation_id'] ?? 0,
-      patientId: json['user_id'] ?? 0,
-      patientName: json['patient_name'],
-      patientAge: json['patient_age'],
-      patientGender: json['patient_gender'],
-      doctorId: json['doctor_id'],
-      doctorName: json['doctor_name'],
-      doctorSpecialty: json['doctor_specialty'],
-      type: json['type'] ?? '',
-      status: json['status'] ?? '',
-      consultationDate: json['consultation_date'] != null ? 
-        DateTime.parse(json['consultation_date']) : null,
+      // Map consultation_id to id
+      id: json['consultation_id'] ?? json['id'] ?? 0,
+      
+      // Basic consultation fields
+      status: json['status'] ?? 'pending',
+      type: json['type'] ?? 'text',
       isEmergency: json['is_emergency'] ?? false,
-      createdAt: json['created_at'] != null ? 
-        DateTime.parse(json['created_at']) : null,
+      
+      // Date fields - handle both string and DateTime
+      consultationDate: json['consultation_date'] != null 
+          ? json['consultation_date'] is String 
+              ? DateTime.parse(json['consultation_date']) 
+              : json['consultation_date']
+          : null,
+      
+      createdAt: json['consultation_created_at'] != null || json['created_at'] != null
+          ? (json['consultation_created_at'] ?? json['created_at']) is String
+              ? DateTime.parse(json['consultation_created_at'] ?? json['created_at'])
+              : (json['consultation_created_at'] ?? json['created_at'])
+          : DateTime.now(),
+      
+      // Patient info
+      patientId: json['patient_id'] ?? 0,
+      patientName: json['patient_name'],
+      patientEmail: json['email'],
+      patientAge: json['age'],
+      patientGender: json['gender'],
+      
+      // Doctor info - might need to be fetched separately
+      doctorId: json['doctor_id'],
+      doctorName: json['doctor_name'] ?? json['doctor_full_name'],
+      doctorSpecialty: json['doctor_specialty'] ?? json['specialty'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'consultation_id': id,
-      'user_id': patientId,
+      'id': id,
+      'status': status,
+      'type': type,
+      'is_emergency': isEmergency,
+      'consultation_date': consultationDate?.toIso8601String(),
+      'created_at': createdAt?.toIso8601String(),
+      'patient_id': patientId,
       'patient_name': patientName,
-      'patient_age': patientAge,
-      'patient_gender': patientGender,
       'doctor_id': doctorId,
       'doctor_name': doctorName,
       'doctor_specialty': doctorSpecialty,
-      'type': type,
-      'status': status,
-      'consultation_date': consultationDate?.toIso8601String(),
-      'is_emergency': isEmergency,
-      'created_at': createdAt?.toIso8601String(),
     };
   }
 }

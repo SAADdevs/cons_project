@@ -3,15 +3,18 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:my_app/basrel.dart';
+
 class ApiTesterPage extends StatefulWidget {
   const ApiTesterPage({Key? key}) : super(key: key);
+   // Update with your actual API URL
 
   @override
   State<ApiTesterPage> createState() => _ApiTesterPageState();
 }
 
 class _ApiTesterPageState extends State<ApiTesterPage> {
-  final TextEditingController _baseUrlController = TextEditingController(text: 'http://192.168.1.11:5000');
+  final TextEditingController _baseUrlController = TextEditingController(text: '$baseUrl');
   final TextEditingController _endpointController = TextEditingController(text: '/api/doctors/with-names');
   final TextEditingController _methodController = TextEditingController(text: 'GET');
   final TextEditingController _bodyController = TextEditingController();
@@ -177,7 +180,7 @@ class _ApiTesterPageState extends State<ApiTesterPage> {
                     decoration: const InputDecoration(
                       labelText: 'Base URL',
                       border: OutlineInputBorder(),
-                      hintText: 'http://192.168.1.11:5000',
+                      hintText: '$baseUrl',
                     ),
                   ),
                   const SizedBox(height: 12),

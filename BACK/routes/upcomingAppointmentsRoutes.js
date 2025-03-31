@@ -1,7 +1,12 @@
-// routes/upcomingAppointmentRoutes.js
+// routes/upcomingAppointmentsRoutes.js
 const express = require('express');
 const router = express.Router();
 const UpcomingAppointmentController = require('../controllers/UpcomingAppointmentsController');
+
+// Define a test route to verify the router is working
+router.get('/test', (req, res) => {
+  res.status(200).json({ message: 'Upcoming appointments routes are working!' });
+});
 
 // Get upcoming appointments for a specific doctor
 router.get('/doctor/:doctor_id', UpcomingAppointmentController.getDoctorUpcomingAppointments);

@@ -22,4 +22,10 @@ router.get('/health-advice/category/:category', PatientController.getHealthAdvic
 router.get('/profile/:patient_id', PatientController.getPatientProfile);
 router.put('/profile/:patient_id', PatientController.updatePatientProfile);
 
+router.get('/consultations/:patient_id', PatientController.getPatientConsultations);
+router.get('/consultations/get-patient-id/:user_id', PatientController.getPatientIdByUserId);
+
+
+
+
 module.exports = router;

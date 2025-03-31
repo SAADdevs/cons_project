@@ -140,7 +140,22 @@ class PatientController {
     // Get patient's consultations
     static async getPatientConsultations(req, res) {
         try {
-            const { patient_id } = req.params;
+            const { user_id } = req.params;
+            console.log("User ID:", user_id);
+    
+            // Fetch the patient ID from the patients table
+            const patientResult = await pool.query(
+                `SELECT id FROM patients WHERE user_id = $1`,
+                [user_id]
+            );
+            
+            // Check if patient exists
+            if (patientResult.rows.length === 0) {
+                return res.status(404).json({ message: "Patient not found" });
+            }
+            
+            const patientId = patientResult.rows[0].id;
+            console.log("Patient ID:", patientId);
             
             // Query to get patient's consultations with doctor information
             const query = `
@@ -166,7 +181,7 @@ class PatientController {
                     c.created_at DESC
             `;
             
-            const result = await pool.query(query, [patient_id]);
+            const result = await pool.query(query, [patientId]);
             
             res.status(200).json(result.rows);
         } catch (error) {
@@ -397,6 +412,68 @@ class PatientController {
             res.status(500).json({ message: "Server error" });
         }
     }
+
+   // controllers/PatientController.js - Fixed version
+
+static async getPatientConsultations(req, res) {
+    try {
+      const { patient_id } = req.params;
+      
+      // Query to get patient's consultations with doctor information
+      // Fix: Changed "d.specialty" to "d.specialties"
+      const query = `
+          SELECT 
+              c.id AS consultation_id,
+              c.doctor_id,
+              c.status,
+              c.type,
+              c.is_emergency,
+              c.consultation_date,
+              c.created_at,
+              d.specialties,
+              u.full_name AS doctor_name
+          FROM 
+              consultations c
+          JOIN 
+              doctors d ON c.doctor_id = d.id
+          JOIN
+              users u ON d.user_id = u.id
+          WHERE 
+              c.patient_id = $1
+          ORDER BY
+              c.created_at DESC
+      `;
+      
+      const result = await pool.query(query, [patient_id]);
+      
+      res.status(200).json(result.rows);
+    } catch (error) {
+      console.error('Error getting patient consultations:', error);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+
+  static async getPatientIdByUserId(req, res) {
+    try {
+      const { user_id } = req.params;
+      
+      // Query to get patient ID by user ID
+      const query = `
+          SELECT id FROM patients WHERE user_id = $1
+      `;
+      
+      const result = await pool.query(query, [user_id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      
+      res.status(200).json(result.rows[0]);
+    } catch (error) {
+      console.error('Error getting patient ID by user ID:', error);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
 }
 
 module.exports = PatientController;

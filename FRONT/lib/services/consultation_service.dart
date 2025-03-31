@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 import '../core/models/consultation.dart';
 import '../services/auth_service_api.dart';
 import 'dart:math'; // Import for min function
 
 class ConsultationService {
-  static const String baseUrl = "http://192.168.1.16:5000/api"; // Match your API base URL
 
 
 static Future<Consultation> requestConsultation({
@@ -254,8 +254,8 @@ static Future<Consultation> requestConsultation({
     }
   }
 
-  // Get consultation details by ID
-  static Future<Consultation> getConsultationById(int consultationId) async {
+  
+   static Future<Consultation> getConsultationById(int consultationId) async {
     try {
       final token = await ApiService.getAuthToken();
       if (token == null) throw Exception('Authentication token not found');
@@ -278,4 +278,31 @@ static Future<Consultation> requestConsultation({
       throw Exception('Error getting consultation details: $e');
     }
   }
+  
+  // Get patient's consultations
+  static Future<List<Consultation>> getPatientConsultations(int patientId) async {
+    try {
+      final token = await ApiService.getAuthToken();
+      if (token == null) throw Exception('Authentication token not found');
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/patients/consultations/$patientId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => Consultation.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load patient consultations: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching patient consultations: $e');
+    }
+  }
+
+ 
 }

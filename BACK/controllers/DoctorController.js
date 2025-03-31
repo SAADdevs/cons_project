@@ -5,7 +5,11 @@ class DoctorController {
     // Get all doctors
     static async getAllDoctors(req, res) {
         try {
-            const result = await pool.query("SELECT * FROM doctors");
+            const result = await pool.query(`
+                SELECT d.*, u.full_name 
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+            `);
             res.status(200).json(result.rows); // Sending a list of all doctors
         } catch (error) {
             console.error(error);
@@ -22,19 +26,23 @@ class DoctorController {
                 return res.status(400).json({ message: "Invalid doctor ID. It must be a number." });
             }
     
-            const result = await pool.query("SELECT * FROM doctors WHERE id = $1", [doctorId]);
+            const result = await pool.query(`
+                SELECT d.*, u.full_name 
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+                WHERE d.id = $1
+            `, [doctorId]);
     
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: "Doctor not found" });
             }
-            res.status(200).json(result.rows);
+            res.status(200).json(result.rows[0]);
         } catch (error) {
             console.error("Database Error:", error);
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
     
-
     // Approve a doctor 
     static async approveDoctor(req, res) {
         const { id } = req.params; 
@@ -55,8 +63,12 @@ class DoctorController {
     // Get a list of verified doctors
     static async getVerifiedDoctors(req, res) {
         try {
-            // Corrected query: Use `true` for boolean comparison
-            const result = await pool.query("SELECT * FROM doctors WHERE is_verified = true");
+            const result = await pool.query(`
+                SELECT d.*, u.full_name 
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+                WHERE d.is_verified = true
+            `);
             res.status(200).json(result.rows);
         } catch (error) {
             console.error(error);
@@ -64,29 +76,42 @@ class DoctorController {
         }
     }
 
-
-    //Get doctors by specialty
+    // Get doctors by specialty
     static async getDoctorsBySpecialty(req, res) {
         const { specialty } = req.params; 
         try {
-            const result = await pool.query("SELECT * FROM doctors WHERE specialties LIKE $1", [`%${specialty}%`]);    
+            // Use a better query that includes full_name from users table
+            const result = await pool.query(`
+                SELECT d.*, u.full_name 
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+                WHERE d.specialties ILIKE $1 AND d.is_verified = true
+            `, [`%${specialty}%`]);
+            
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: "No doctors found with that specialty" });
             }
     
+            // Log for debugging
+            console.log(`Found ${result.rows.length} doctors with specialty: ${specialty}`);
+            console.log('First doctor:', result.rows[0]);
+            
             res.status(200).json(result.rows);
         } catch (error) {
-            console.error(error);
-            res.status(500).json({ message: "Server error" });
+            console.error("Error in getDoctorsBySpecialty:", error);
+            res.status(500).json({ message: "Server error", error: error.message });
         }
     }
     
     // Get available doctors
     static async getAvailableDoctors(req, res) {
         try {
-            const result = await pool.query(
-                "SELECT * FROM doctors WHERE is_available = true"
-            );
+            const result = await pool.query(`
+                SELECT d.*, u.full_name 
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+                WHERE d.is_available = true AND d.is_verified = true
+            `);
     
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: "No available doctors found" });
@@ -141,33 +166,30 @@ class DoctorController {
         }
     }
 
-    // Add this method to your DoctorController.js file
-
-// Get all doctors with their names from users table
-static async getDoctorsWithNames(req, res) {
-    try {
-        const query = `
-            SELECT d.id, d.user_id, u.full_name, d.specialties, d.is_verified
-            FROM doctors d
-            JOIN users u ON d.user_id = u.id
-            WHERE u.role = 'doctor'
-        `;
-        
-        const result = await pool.query(query);
-        
-        res.status(200).json(result.rows);
-    } catch (error) {
-        console.error("Error fetching doctors with names:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+    // Get all doctors with their names from users table
+    static async getDoctorsWithNames(req, res) {
+        try {
+            const query = `
+                SELECT d.id, d.user_id, u.full_name, d.specialties, d.hospital, d.is_verified, d.is_available
+                FROM doctors d
+                JOIN users u ON d.user_id = u.id
+                WHERE u.role = 'doctor'
+            `;
+            
+            const result = await pool.query(query);
+            
+            // Log for debugging
+            console.log(`Found ${result.rows.length} doctors with names`);
+            if (result.rows.length > 0) {
+                console.log('Sample doctor:', result.rows[0]);
+            }
+            
+            res.status(200).json(result.rows);
+        } catch (error) {
+            console.error("Error fetching doctors with names:", error);
+            res.status(500).json({ message: "Server error", error: error.message });
+        }
     }
-}
-
-// Then add this route in your routes file:
-// router.get('/doctors/with-names', DoctorController.getDoctorsWithNames);
-    
-    
-    
-    
 }
 
 module.exports = DoctorController;

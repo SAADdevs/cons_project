@@ -28,6 +28,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api', doctorRoutes); 
@@ -35,13 +41,19 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/upcoming-appointments', upcomingAppointmentsRoutes); 
 app.use('/api/health-advice', healthAdviceRoutes);
-app.use('/api/statistics', statisticsRoutes);
-app.use('/api/chat', chatRoutes); // Add the chat routes
+app.use('/api/dashboard', statisticsRoutes);
+app.use('/api/chat', chatRoutes);
+
+// Simple test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working!' });
+});
 
 // Global Error Handler
 app.use(errorHandler);
 
 // Start the server 
-app.listen(5000, () => {
-    console.log('Server is running on port 5000');
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });

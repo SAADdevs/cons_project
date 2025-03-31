@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: PatientHomeScreen(), // Set the DoctorConsultationScreen as the home screen
-    );
-  }
+      home: LoginScreen(), // Set the DoctorConsultationScreen as the home screen
+    );             
+  }  
 }

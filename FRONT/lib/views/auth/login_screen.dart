@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/services/auth_service_api.dart';
 import 'package:my_app/views/auth/register_screen.dart';
-import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
 import 'package:my_app/views/doctors/doctor_home_screen.dart';
+import 'package:my_app/views/patients/PatientHomeScreen.dart';
+import 'package:my_app/admin/admin_home_page.dart'; // Import admin page
 
 
 class LoginScreen extends StatefulWidget {
@@ -37,17 +38,40 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         
         if (response.containsKey('token')) {
-          // Successful login
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const  DoctorHomeScreen()),
-          );
+          // Get the user role to determine where to navigate
+          final userRole = await ApiService.getUserRole();
+          
+          // Navigate based on role
+          if (userRole == 'doctor') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DoctorHomeScreen()),
+            );
+          } else if (userRole == 'patient') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const PatientHomeScreen()),
+            );
+          } else if (userRole == 'admin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminHomePage()),
+            );
+          } else {
+            // Fallback if role is unknown
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Unknown user role. Please contact support."),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
         } else if (response.containsKey('message') && 
-                   response['message'] == "Doctor account not verified yet") {
+                 response['message'] == "Doctor account not verified yet") {
           // Handle unverified doctor account
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Your account is not verified. Please contact support."),
+              content: Text("Your doctor account is not verified yet. Please contact support."),
               backgroundColor: Colors.orange,
             ),
           );

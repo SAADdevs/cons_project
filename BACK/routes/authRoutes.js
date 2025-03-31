@@ -11,10 +11,14 @@ router.post('/register', AuthController.registerUser); // Ensure the controller 
 // Login route
 router.post('/login', AuthController.loginUser);
 
-router.post('/login/auth-user-id', AuthController.getAuthUserId);// Ensure the controller method exists
+// Get authenticated user ID
+router.post('/login/auth-user-id', AuthController.getAuthUserId);
 
-// Protected routes
-//router.get('/doctors', verifyToken, checkRole(['patient', 'admin']), AuthController.getAllDoctors);  // Ensure the controller method exists
-//router.put('/approve-doctor/:id', verifyToken, checkRole(['admin']), AuthController.approveDoctor); // Ensure the controller method exists
+// User profile routes
+router.get('/profile', verifyToken, AuthController.getUserProfile);
+router.put('/profile', verifyToken, AuthController.updateUserProfile); // NEW: Add route for updating user profile
+
+// Password management
+router.post('/change-password', verifyToken, AuthController.changePassword);
 
 module.exports = router;

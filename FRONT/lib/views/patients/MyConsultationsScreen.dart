@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/constants.dart';
-import '../../services/consultation_service.dart';
+import '../../services/patient_consultation_service.dart';
+import '../../services/auth_service_api.dart';
 import '../../core/models/consultation.dart';
-import 'package:my_app/services/auth_service_api.dart';
 
 class MyConsultationsScreen extends StatefulWidget {
-  const MyConsultationsScreen({super.key});
+  const MyConsultationsScreen({Key? key}) : super(key: key);
 
   @override
   _MyConsultationsScreenState createState() => _MyConsultationsScreenState();
@@ -15,10 +15,12 @@ class MyConsultationsScreen extends StatefulWidget {
 class _MyConsultationsScreenState extends State<MyConsultationsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = true;
+  List<Consultation> _allConsultations = [];
   List<Consultation> _pendingConsultations = [];
   List<Consultation> _upcomingConsultations = [];
   List<Consultation> _pastConsultations = [];
   int? _patientId;
+  String _errorMessage = '';
   final DateFormat _dateFormat = DateFormat('MMM dd, yyyy - HH:mm');
 
   @override
@@ -35,112 +37,124 @@ class _MyConsultationsScreenState extends State<MyConsultationsScreen> with Sing
   }
 
   Future<void> _loadPatientIdAndConsultations() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    
     try {
+      // Get user ID from auth service
       final userId = await ApiService.getCurrentUserId();
-      // For demo purposes, use a fixed patientId if the API doesn't return one
-      setState(() => _patientId = userId ?? 1);
+      
+      if (userId == null) {
+        throw Exception('User ID not found. Please log in again.');
+      }
+      
+      debugPrint('Current user ID: $userId');
+      
+      // TODO: In a real app, you would fetch the patient ID associated with this user ID
+      // For now, we'll use the user ID as the patient ID
+      setState(() => _patientId = userId);
+      
       await _fetchConsultations();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading patient information: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      debugPrint('Error loading patient information: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
+      
+      _showErrorSnackBar('Error loading patient information: $e');
     }
   }
 
   Future<void> _fetchConsultations() async {
     if (_patientId == null) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Patient ID not found';
+      });
       return;
     }
     
-    setState(() => _isLoading = true);
     try {
-      // This would ideally come from your API service
-      // Using mock data here as a placeholder
-      final consultations = await _fetchMockConsultations();
+      final consultations = await PatientConsultationService.getPatientConsultations(_patientId!);
       
       if (mounted) {
         setState(() {
+          _allConsultations = consultations;
+          
+          // Filter consultations by status
           _pendingConsultations = consultations.where((c) => c.status == 'pending').toList();
           _upcomingConsultations = consultations.where((c) => c.status == 'accepted').toList();
-          _pastConsultations = consultations.where((c) => c.status == 'completed' || c.status == 'rejected').toList();
+          _pastConsultations = consultations.where((c) => 
+            c.status == 'completed' || c.status == 'rejected').toList();
+          
           _isLoading = false;
         });
+        
+        debugPrint('Fetched ${consultations.length} consultations');
+        debugPrint('Pending: ${_pendingConsultations.length}, Upcoming: ${_upcomingConsultations.length}, Past: ${_pastConsultations.length}');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load consultations: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _isLoading = false);
+        debugPrint('Error fetching consultations: $e');
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+        _showErrorSnackBar('Failed to load consultations: $e');
       }
     }
   }
 
-  // Mock function for development - replace with actual API calls
-  Future<List<Consultation>> _fetchMockConsultations() async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    return [
-      Consultation(
-        id: 1,
-        patientId: _patientId!,
-        patientName: "You",
-        doctorId: 1,
-        doctorName: "Dr. John Smith",
-        doctorSpecialty: "Cardiology",
-        type: "video",
-        status: "pending",
-        isEmergency: false,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _cancelConsultationRequest(int consultationId) async {
+    try {
+      final success = await PatientConsultationService.cancelConsultationRequest(consultationId);
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Consultation request cancelled')),
+        );
+        
+        // Refresh the list
+        _fetchConsultations();
+      } else {
+        _showErrorSnackBar('Failed to cancel consultation request');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error: $e');
+    }
+  }
+
+  void _showCancelConfirmation(int consultationId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Request'),
+        content: const Text('Are you sure you want to cancel this consultation request?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _cancelConsultationRequest(consultationId);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
       ),
-      Consultation(
-        id: 2,
-        patientId: _patientId!,
-        patientName: "You",
-        doctorId: 2,
-        doctorName: "Dr. Maria Johnson",
-        doctorSpecialty: "Dermatology",
-        type: "audio",
-        status: "accepted",
-        consultationDate: DateTime.now().add(const Duration(days: 3)),
-        isEmergency: false,
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      ),
-      Consultation(
-        id: 3,
-        patientId: _patientId!,
-        patientName: "You",
-        doctorId: 3,
-        doctorName: "Dr. Robert Lee",
-        doctorSpecialty: "Pediatrics",
-        type: "video",
-        status: "completed",
-        consultationDate: DateTime.now().subtract(const Duration(days: 5)),
-        isEmergency: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 7)),
-      ),
-      Consultation(
-        id: 4,
-        patientId: _patientId!,
-        patientName: "You",
-        doctorId: 4,
-        doctorName: "Dr. Sarah Williams",
-        doctorSpecialty: "Neurology",
-        type: "text",
-        status: "rejected",
-        isEmergency: false,
-        createdAt: DateTime.now().subtract(const Duration(days: 10)),
-      ),
-    ];
+    );
   }
 
   @override
@@ -171,14 +185,16 @@ class _MyConsultationsScreenState extends State<MyConsultationsScreen> with Sing
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildConsultationList(_pendingConsultations, 'pending'),
-                _buildConsultationList(_upcomingConsultations, 'upcoming'),
-                _buildConsultationList(_pastConsultations, 'past'),
-              ],
-            ),
+          : _errorMessage.isNotEmpty
+              ? _buildErrorState()
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildConsultationList(_pendingConsultations, 'pending'),
+                    _buildConsultationList(_upcomingConsultations, 'upcoming'),
+                    _buildConsultationList(_pastConsultations, 'past'),
+                  ],
+                ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.pushNamed(context, '/doctor-categories');
@@ -186,6 +202,50 @@ class _MyConsultationsScreenState extends State<MyConsultationsScreen> with Sing
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add),
         tooltip: 'New Consultation',
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 80,
+            color: Colors.red[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Error Loading Consultations',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[500],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _fetchConsultations,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -582,64 +642,21 @@ class _MyConsultationsScreenState extends State<MyConsultationsScreen> with Sing
     }
   }
 
-  void _showCancelConfirmation(int consultationId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Consultation'),
-        content: const Text('Are you sure you want to cancel this consultation? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // TODO: Implement actual cancellation logic
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Consultation cancelled')),
-              );
-              _fetchConsultations(); // Refresh the list
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Yes, Cancel'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _joinConsultation(Consultation consultation) {
-    // Implement navigation to the consultation screen based on type
+    // Implementation for joining the consultation based on type
     final consultationType = consultation.type;
-    String route;
     
-    switch (consultationType) {
-      case 'video':
-        route = '/video-consultation';
-        break;
-      case 'audio':
-        route = '/audio-consultation';
-        break;
-      case 'text':
-        route = '/chat';
-        break;
-      default:
-        route = '/chat';
-    }
-    
-    // For now, simply show a snackbar
+    // For demonstration, show a snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Joining ${_getConsultationTypeText(consultationType)} consultation')),
     );
     
-    // Navigation implementation would go here
-    // Navigator.pushNamed(context, route, arguments: consultation);
+    // In a real app, you would navigate to the appropriate chat/video screen
+    // Navigator.push(context, MaterialPageRoute(builder: (context) => ConsultationScreen(consultation: consultation)));
   }
 
   void _leaveReview(Consultation consultation) {
-    // Implement review dialogue
+    // Show a review dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

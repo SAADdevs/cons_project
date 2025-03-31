@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/services/DoctorService.dart';
 import 'package:my_app/views/patients/DoctorDetailsScreen.dart';
 import '../../core/utils/constants.dart';
 import '../../services/doctor_service.dart';

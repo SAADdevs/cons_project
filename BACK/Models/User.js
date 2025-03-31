@@ -53,7 +53,8 @@ class User {
                 updateValues.push(email);
             }
             
-            updateFields.push(`updated_at = NOW()`);
+            // Remove the updated_at field if it doesn't exist in your database
+            // updateFields.push(`updated_at = NOW()`);
             
             updateQuery += updateFields.join(', ') + ` WHERE id = $${updateValues.length + 1} RETURNING id, full_name, email, role`;
             updateValues.push(id);
@@ -67,7 +68,7 @@ class User {
     
     static async updatePassword(id, hashedPassword) {
         try {
-            const query = 'UPDATE users SET password = $1, updated_at = NOW() WHERE id = $2';
+            const query = 'UPDATE users SET password = $1 WHERE id = $2';
             await db.query(query, [hashedPassword, id]);
             return true;
         } catch (error) {

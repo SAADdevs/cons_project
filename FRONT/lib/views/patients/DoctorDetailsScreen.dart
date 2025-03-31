@@ -3,6 +3,7 @@ import 'package:my_app/services/doctor_service.dart';
 import '../../core/utils/constants.dart';
 import '../../core/models/doctor_model.dart';
 import '../../services/consultation_service.dart';
+import '../../services/auth_service_api.dart';
 
 enum ConsultationType {
   video,
@@ -24,11 +25,18 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   ConsultationType _selectedConsultationType = ConsultationType.video;
   bool _isEmergency = false;
 
-  // Consultation type mapping
+  // Consultation type mapping with clearer labels
   final Map<ConsultationType, String> _consultationTypeLabels = {
-    ConsultationType.video: 'Video Consultation',
-    ConsultationType.audio: 'Audio Consultation',
-    ConsultationType.chat: 'Chat Consultation'
+    ConsultationType.video: 'Video Call',
+    ConsultationType.audio: 'Audio Call',
+    ConsultationType.chat: 'Chat'
+  };
+
+  // Consultation type descriptions for more clarity
+  final Map<ConsultationType, String> _consultationTypeDescriptions = {
+    ConsultationType.video: 'Face-to-face video consultation',
+    ConsultationType.audio: 'Voice-only consultation',
+    ConsultationType.chat: 'Text-based messaging'
   };
 
   @override
@@ -36,25 +44,36 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           // App Bar
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
+            stretch: true,
             backgroundColor: AppColors.primary,
             flexibleSpace: FlexibleSpaceBar(
+              centerTitle: false,
+              titlePadding: const EdgeInsets.only(left: 16, bottom: 16, right: 16),
               title: Text(
                 widget.doctor.name,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               background: _buildDoctorHeader(),
+              stretchModes: const [
+                StretchMode.zoomBackground,
+                StretchMode.blurBackground,
+              ],
             ),
           ),
 
-          // Rest of the implementation remains the same as in the previous submission
+          // Rest of the implementation
           SliverList(
             delegate: SliverChildListDelegate([
               // Doctor Info Section
@@ -87,6 +106,8 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
                   ),
                 ),
               ),
+              // Add bottom padding for better scrolling experience
+              const SizedBox(height: 20),
             ]),
           ),
         ],
@@ -111,7 +132,7 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
 
         // Doctor Avatar and Details
         Positioned(
-          bottom: 16,
+          bottom: 60, // Move up to avoid overlapping with the title
           left: 16,
           right: 16,
           child: Row(
@@ -293,31 +314,96 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ConsultationType.values.map((type) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: ChoiceChip(
-                    label: Text(_consultationTypeLabels[type]!),
-                    selected: _selectedConsultationType == type,
-                    onSelected: (bool selected) {
-                      setState(() {
-                        _selectedConsultationType = type;
-                      });
-                    },
-                    selectedColor: AppColors.primary.withOpacity(0.2),
-                    backgroundColor: Colors.grey[200],
-                    labelStyle: TextStyle(
-                      color: _selectedConsultationType == type 
-                          ? AppColors.primary 
-                          : Colors.grey[700],
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: ConsultationType.values.length,
+            itemBuilder: (context, index) {
+              final type = ConsultationType.values[index];
+              final isSelected = _selectedConsultationType == type;
+              
+              // Icons for each consultation type
+              final Map<ConsultationType, IconData> typeIcons = {
+                ConsultationType.video: Icons.videocam,
+                ConsultationType.audio: Icons.phone,
+                ConsultationType.chat: Icons.chat_bubble_outline,
+              };
+              
+              return Card(
+                elevation: isSelected ? 2 : 0,
+                margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedConsultationType = type;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? AppColors.primary.withOpacity(0.1)
+                                : Colors.grey.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            typeIcons[type],
+                            color: isSelected ? AppColors.primary : Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _consultationTypeLabels[type]!,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? AppColors.primary : Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _consultationTypeDescriptions[type]!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Radio<ConsultationType>(
+                          value: type,
+                          groupValue: _selectedConsultationType,
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedConsultationType = value;
+                              });
+                            }
+                          },
+                          activeColor: AppColors.primary,
+                        ),
+                      ],
                     ),
                   ),
-                );
-              }).toList(),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -327,26 +413,54 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
   Widget _buildEmergencyConsultationSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          const Text(
-            'Emergency Consultation',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(
+                Icons.emergency,
+                color: _isEmergency ? Colors.red : Colors.grey,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Emergency Consultation',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Select for urgent medical concerns',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _isEmergency,
+                onChanged: (bool value) {
+                  setState(() {
+                    _isEmergency = value;
+                  });
+                },
+                activeColor: Colors.red,
+                activeTrackColor: Colors.red.withOpacity(0.3),
+              ),
+            ],
           ),
-          const Spacer(),
-          Switch(
-            value: _isEmergency,
-            onChanged: (bool value) {
-              setState(() {
-                _isEmergency = value;
-              });
-            },
-            activeColor: AppColors.primary,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -359,16 +473,25 @@ class _DoctorDetailsScreenState extends State<DoctorDetailsScreen> {
     }
 
     try {
-      // TODO: Replace with actual patient ID from authentication
-      const int patientId = 1; 
+      // Get the current user ID from auth service
+      final userId = await ApiService.getCurrentUserId();
+      if (userId == null) {
+        _showErrorDialog("Please log in to book a consultation");
+        return;
+      }
 
       // Prepare consultation details
       final consultation = await ConsultationService.requestConsultation(
-        patientId: patientId,
+        patientId: userId,
         doctorId: widget.doctor.id,
         type: _selectedConsultationType.name,
         isEmergency: _isEmergency,
       );
+
+      if (consultation == null) {
+        _showErrorDialog("Failed to create consultation request");
+        return;
+      }
 
       // Show success dialog
       _showSuccessDialog(consultation);

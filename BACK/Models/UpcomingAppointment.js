@@ -1,130 +1,97 @@
-// Models/UpcomingAppointment.js
-const pool = require('../config/db');
+// controllers/UpcomingAppointmentController.js
+const UpcomingAppointment = require('../Models/UpcomingAppointment');
+const Doctor = require('../Models/Doctor');
 
-class UpcomingAppointment {
-    // Fetch upcoming appointments for a specific doctor
-    static async getDoctorUpcomingAppointments(doctorId) {
-        try {
-            console.log('Fetching upcoming appointments for doctor_id:', doctorId);
-            console.log('Current server time:', new Date());
-    
-            const query = `
-                WITH consultation_details AS (
-                    SELECT 
-                        c.id AS consultation_id,
-                        c.patient_id,
-                        c.doctor_id,
-                        c.consultation_date,
-                        c.type,
-                        c.status,
-                        c.is_emergency,
-                        p.user_id AS patient_user_id
-                    FROM 
-                        consultations c
-                    JOIN 
-                        patients p ON c.patient_id = p.id
-                    WHERE 
-                        c.doctor_id = $1
-                        AND c.status = 'accepted'
-                )
-                SELECT 
-                    cd.consultation_id,
-                    cd.consultation_date,
-                    cd.type,
-                    cd.status,
-                    cd.is_emergency,
-                    u.id AS user_id,
-                    u.full_name AS patient_name,
-                    p.age AS patient_age,
-                    p.gender AS patient_gender
-                FROM 
-                    consultation_details cd
-                JOIN 
-                    users u ON cd.patient_user_id = u.id
-                JOIN 
-                    patients p ON p.user_id = u.id
-                ORDER BY 
-                    cd.consultation_date ASC
-            `;
-    
-            console.log('Executing query with doctor_id:', doctorId);
-            const result = await pool.query(query, [doctorId]);
-    
-            console.log(`Found ${result.rows.length} upcoming appointments`);
-            if (result.rows.length > 0) {
-                console.log('First appointment:', result.rows[0]);
-            }
-    
-            return result.rows;
-        } catch (error) {
-            console.error('Detailed error in getDoctorUpcomingAppointments:', error);
-            throw error;
+class UpcomingAppointmentController {
+    // Get upcoming appointments for a doctor
+   // In controllers/UpcomingAppointmentController.js
+static async getDoctorUpcomingAppointments(req, res) {
+    try {
+        const userId = req.params.doctor_id;
+        console.log('Received request for user_id:', userId);
+        
+        // First get the doctor record by user ID
+        const doctor = await Doctor.getDoctorByUserId(userId);
+        if (!doctor) {
+            console.log(`Doctor with user ID ${userId} not found`);
+            return res.status(404).json({ message: "Doctor not found" });
         }
+        
+        const doctorId = doctor.id;
+        console.log(`Found doctor ID ${doctorId} for user ID ${userId}, proceeding to fetch appointments`);
+        
+        // Fetch upcoming appointments using the doctor ID
+        const appointments = await UpcomingAppointment.getDoctorUpcomingAppointments(doctorId);
+        
+        console.log(`Returning ${appointments.length} appointments`);
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error('Error in getDoctorUpcomingAppointments:', error);
+        res.status(500).json({ 
+            message: "Server error", 
+            error: error.message 
+        });
     }
+}
 
     // Count upcoming appointments for a doctor
-    static async countDoctorUpcomingAppointments(doctorId) {
+    static async countDoctorUpcomingAppointments(req, res) {
         try {
-            const query = `
-                SELECT COUNT(*) AS upcoming_count
-                FROM consultations
-                WHERE 
-                    doctor_id = $1 
-                    AND status = 'accepted'
-                    AND consultation_date > NOW()
-            `;
+            const userId = req.params.doctor_id;
             
-            const result = await pool.query(query, [doctorId]);
-            return parseInt(result.rows[0].upcoming_count);
+            // Get the doctor record by user ID
+            const doctor = await Doctor.getDoctorByUserId(userId);
+            if (!doctor) {
+                return res.status(404).json({ message: "Doctor not found" });
+            }
+            
+            // Count upcoming appointments with the doctor ID
+            const upcomingCount = await UpcomingAppointment.countDoctorUpcomingAppointments(doctor.id);
+            
+            res.status(200).json({ upcoming_count: upcomingCount });
         } catch (error) {
-            console.error('Error counting upcoming appointments:', error);
-            throw error;
+            console.error('Error in countDoctorUpcomingAppointments:', error);
+            res.status(500).json({ 
+                message: "Server error", 
+                error: error.message 
+            });
         }
     }
 
     // Cancel an upcoming appointment
-    // Models/UpcomingAppointment.js - Updated cancelAppointment method
-
-// Cancel an upcoming appointment
-static async cancelAppointment(consultationId) {
-    try {
-        console.log(`Executing cancellation query for consultation_id: ${consultationId}`);
-        
-        // First, check if the consultation exists
-        const checkQuery = `
-            SELECT id, status FROM consultations WHERE id = $1
-        `;
-        const checkResult = await pool.query(checkQuery, [consultationId]);
-        
-        if (checkResult.rows.length === 0) {
-            console.log(`No consultation found with ID: ${consultationId}`);
-            return null;
+    static async cancelAppointment(req, res) {
+        try {
+            const consultationId = req.params.consultation_id;
+            console.log("Received request to cancel consultation with ID:", consultationId);
+            
+            if (!consultationId) {
+                console.log("Missing consultation_id parameter");
+                return res.status(400).json({ message: "Consultation ID is required" });
+            }
+            
+            // Log what we're about to do
+            console.log(`Attempting to cancel consultation with ID: ${consultationId}`);
+            
+            const cancelledAppointment = await UpcomingAppointment.cancelAppointment(consultationId);
+            
+            if (!cancelledAppointment) {
+                console.log(`No appointment found with ID: ${consultationId}`);
+                return res.status(404).json({ message: "Appointment not found" });
+            }
+            
+            console.log(`Successfully cancelled appointment: ${JSON.stringify(cancelledAppointment)}`);
+            res.status(200).json({ 
+                message: "Appointment cancelled successfully", 
+                appointment: cancelledAppointment 
+            });
+        } catch (error) {
+            console.error('Error in cancelAppointment:', error);
+            res.status(500).json({ 
+                message: "Server error", 
+                error: error.message 
+            });
         }
-        
-        console.log(`Found consultation: ${JSON.stringify(checkResult.rows[0])}`);
-        
-        // Use a value that's allowed by your constraint: 'rejected' instead of 'cancelled'
-        const query = `
-            UPDATE consultations 
-            SET status = 'rejected' 
-            WHERE id = $1 
-            RETURNING *
-        `;
-        
-        const result = await pool.query(query, [consultationId]);
-        
-        if (result.rows.length > 0) {
-            console.log(`Successfully cancelled: ${JSON.stringify(result.rows[0])}`);
-            return result.rows[0];
-        } else {
-            console.log(`Update query didn't affect any rows for ID: ${consultationId}`);
-            return null;
-        }
-    } catch (error) {
-        console.error('Error cancelling appointment:', error);
-        throw error;
     }
 }
-}
 
-module.exports = UpcomingAppointment;
+module.exports = UpcomingAppointmentController;

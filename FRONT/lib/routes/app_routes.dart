@@ -1,5 +1,8 @@
 // lib/routes/app_routes.dart
 
+import 'package:flutter/material.dart';
+import 'package:my_app/views/doctors/DoctorAdviceScreen%20.dart';
+
 class AppRoutes {
   // Authentication Routes
   static const String login = '/login';
@@ -24,4 +27,12 @@ class AppRoutes {
   static const String adminHome = '/admin/home';
   static const String adminDoctors = '/admin/doctors';
   static const String adminAdvice = '/admin/advice';
+  // app_routes.dart - Make sure to add this route
+
+// Then in your route mapping
+static Map<String, WidgetBuilder> get routes => {
+  // other routes...
+  postAdvice: (context) => const DoctorAdviceScreen(),
+};
+
 }

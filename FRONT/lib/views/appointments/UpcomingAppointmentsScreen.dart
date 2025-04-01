@@ -7,6 +7,7 @@ import '../../services/auth_service_api.dart';
 
 class UpcomingAppointmentsScreen extends StatefulWidget {
   const UpcomingAppointmentsScreen({super.key});
+  
 
   
   @override
@@ -17,6 +18,8 @@ class _UpcomingAppointmentsScreenState extends State<UpcomingAppointmentsScreen>
   List<Consultation> _upcomingAppointments = [];
   bool _isLoading = true;
   int? _doctorId;
+  String? _lastError;
+
   final DateFormat _dateFormat = DateFormat('MMM dd, yyyy - HH:mm');
 
   @override
@@ -24,6 +27,7 @@ class _UpcomingAppointmentsScreenState extends State<UpcomingAppointmentsScreen>
     super.initState();
     _loadDoctorIdAndAppointments();
   }
+  
   
   // Load doctor ID and then fetch appointments
   Future<void> _loadDoctorIdAndAppointments() async {
@@ -55,48 +59,56 @@ class _UpcomingAppointmentsScreenState extends State<UpcomingAppointmentsScreen>
 
   // Fetch upcoming appointments
   Future<void> _fetchUpcomingAppointments() async {
-    if (_doctorId == null) {
-      print("Doctor ID is null, cannot fetch appointments");
-      // If doctor ID is not available, try to load it first
-      await _loadDoctorIdAndAppointments();
-      return;
-    }
+  if (_doctorId == null) {
+    print("Doctor ID is null, cannot fetch appointments");
+    // If doctor ID is not available, try to load it first
+    await _loadDoctorIdAndAppointments();
+    return;
+  }
     
-    setState(() => _isLoading = true);
+  setState(() {
+    _isLoading = true;
+    _lastError = null; // Reset error state when starting a new fetch
+  });
+  
+  try {
+    print("Fetching upcoming appointments for doctor ID: $_doctorId");
+      
+    // For debugging - temporarily use the pending consultations endpoint
     try {
-      print("Fetching upcoming appointments for doctor ID: $_doctorId");
-      
-      // For debugging - temporarily use the pending consultations endpoint
-      try {
-        final pendingConsultations = await ConsultationService.fetchPendingConsultations(_doctorId!);
-        print("Successfully fetched ${pendingConsultations.length} pending consultations");
-      } catch (e) {
-        print("Error fetching pending consultations: $e");
-      }
-      
-      // Now try to fetch upcoming appointments
-      final fetchedAppointments = await ConsultationService.fetchUpcomingConsultations(_doctorId!);
-      print("Successfully fetched ${fetchedAppointments.length} upcoming appointments");
-      
-      if (mounted) {
-        setState(() => _upcomingAppointments = fetchedAppointments);
-      }
+      final pendingConsultations = await ConsultationService.fetchPendingConsultations(_doctorId!);
+      print("Successfully fetched ${pendingConsultations.length} pending consultations");
     } catch (e) {
-      print("Error fetching upcoming appointments: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load appointments: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      print("Error fetching pending consultations: $e");
+    }
+      
+    // Now try to fetch upcoming appointments
+    final fetchedAppointments = await ConsultationService.fetchUpcomingConsultations(_doctorId!);
+    print("Successfully fetched ${fetchedAppointments.length} upcoming appointments");
+      
+    if (mounted) {
+      setState(() => _upcomingAppointments = fetchedAppointments);
+    }
+  } catch (e) {
+    print("Error fetching upcoming appointments: $e");
+    if (mounted) {
+      setState(() {
+        _lastError = 'Error: $e'; // Store the error message
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load appointments: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
   // Cancel an appointment
  // Replace the _cancelAppointment method in your UpcomingAppointmentsScreen class
 
@@ -212,46 +224,58 @@ Future<void> _cancelAppointment(int consultationId) async {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.calendar_today,
-            size: 80,
-            color: Colors.grey[400],
+  // UpcomingAppointmentsScreen.dart - Update the _buildEmptyState method
+
+Widget _buildEmptyState() {
+  final hasError = _lastError != null;
+  
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          hasError ? Icons.error_outline : Icons.calendar_today,
+          size: 80,
+          color: hasError ? Colors.red[300] : Colors.grey[400],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          hasError ? 'Error loading appointments' : 'No upcoming appointments',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: hasError ? Colors.red[700] : Colors.grey[600],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No upcoming appointments',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          hasError 
+              ? _lastError!
+              : 'Your scheduled consultations will appear here',
+          style: TextStyle(
+            color: hasError ? Colors.red[500] : Colors.grey[500],
+            fontSize: hasError ? 14 : 15,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.refresh),
+          label: const Text('Refresh'),
+          onPressed: _fetchUpcomingAppointments,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: hasError ? Colors.red : Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Your scheduled consultations will appear here',
-            style: TextStyle(
-              color: Colors.grey[500],
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
-            onPressed: _fetchUpcomingAppointments,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildAppointmentsList() {
     return RefreshIndicator(

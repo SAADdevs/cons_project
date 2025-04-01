@@ -4,10 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:my_app/basrel.dart' show baseUrl;
 import 'package:my_app/services/consultation_service.dart';
 import 'package:my_app/views/appointments/UpcomingAppointmentsScreen.dart';
+import 'package:my_app/views/doctors/DoctorAdviceScreen%20.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
+import 'package:my_app/widgets/DoctorHomeWidgets.dart';
 import '../../basrel.dart';
 import '../../services/auth_service_api.dart';
-import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -36,31 +37,70 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       // Get doctor ID from API service
       doctorId = await ApiService.getCurrentDoctorId();
       
+      // Get user name directly from auth service
+      final userName = await ApiService.getUserFullName();
+      if (userName != null && userName.isNotEmpty) {
+        setState(() {
+          doctorName = userName;
+        });
+        print("Loaded doctor name from auth service: $doctorName");
+      }
+      
       if (doctorId != null) {
-        // Get doctor profile from API
+        // Get doctor profile from API (as a fallback or for additional data)
         final token = await ApiService.getAuthToken();
         if (token != null) {
-          final response = await http.get(
-            Uri.parse("$baseUrl/doctor"),
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": "Bearer $token"
-            },
-          );
+          // Try different endpoint formats if the original doesn't work
+          final List<String> endpoints = [
+            "$baseUrl/doctor",
+            "$baseUrl/doctors/$doctorId",
+            "$baseUrl/doctors/profile",
+          ];
           
-          if (response.statusCode == 200) {
-            final doctorData = jsonDecode(response.body);
-            setState(() {
-              doctorName = doctorData['full_name'] ?? "Doctor";
-              isAvailable = doctorData['is_available'] ?? true;
-            });
-            
-            // Fetch consultations counts
-            await _fetchConsultationsCounts();
+          for (final endpoint in endpoints) {
+            try {
+              print("Attempting to fetch doctor profile from: $endpoint");
+              final response = await http.get(
+                Uri.parse(endpoint),
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer $token"
+                },
+              );
+              
+              if (response.statusCode == 200) {
+                print("Doctor profile response: ${response.body}");
+                final dynamic data = jsonDecode(response.body);
+                final doctorData = data is List ? data[0] : data;
+                
+                setState(() {
+                  // Only update name if it hasn't been set or is still default
+                  if (doctorName == "Doctor") {
+                    if (doctorData.containsKey('full_name')) {
+                      doctorName = doctorData['full_name'] ?? "Doctor";
+                    } else if (doctorData.containsKey('name')) {
+                      doctorName = doctorData['name'] ?? "Doctor";
+                    }
+                  }
+                  isAvailable = doctorData['is_available'] ?? true;
+                });
+                print("Final doctor name: $doctorName");
+                
+                // Break out of the loop if successful
+                break;
+              }
+            } catch (e) {
+              print("Error fetching from $endpoint: $e");
+              // Continue to the next endpoint
+            }
           }
         }
+        
+        // Fetch consultations counts regardless of profile response
+        await _fetchConsultationsCounts();
       }
     } catch (e) {
+      print("Error in _loadDoctorInfo: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -74,8 +114,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         setState(() => isLoading = false);
       }
     }
+  }
 
-  }  
   Future<void> _fetchConsultationsCounts() async {
     try {
       if (doctorId != null) {
@@ -89,12 +129,8 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           this.pendingConsultations = pendingConsultations.length;
           this.upcomingAppointments = upcomingAppointments.length;
         });
-        
-        print("Updated counts - Pending: ${pendingConsultations.length}, Upcoming: ${upcomingAppointments.length}");
       }
     } catch (e) {
-      print('Error fetching consultation counts: $e');
-      // Optionally show a snackbar to the user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -116,18 +152,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       final token = await ApiService.getAuthToken();
       if (token == null) throw Exception('Authentication token not found');
       
-      // Print doctor ID and current availability for debugging
-      print("Doctor ID: $doctorId, Current availability: $isAvailable");
-      
-      // Print the request URL and body for debugging
-
       final url = "$baseUrl/doctors/update-availability";
       final body = {
         "doctor_id": doctorId,
         "is_available": !isAvailable
       };
-      print("Making request to: $url");
-      print("Request body: ${jsonEncode(body)}");
       
       // Make the API call to update availability
       final response = await http.put(
@@ -139,12 +168,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         body: jsonEncode(body),
       );
       
-      // Print the response for debugging
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
-      
       if (response.statusCode == 200) {
-        // Only try to decode if the status is 200
         setState(() => isAvailable = !isAvailable);
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -154,11 +178,9 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           ),
         );
       } else {
-        // Don't try to decode JSON if the response might be HTML
         throw Exception('Failed to update availability: ${response.statusCode}');
       }
     } catch (e) {
-      print("Error in _toggleAvailability: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to update availability: $e'),
@@ -170,25 +192,48 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         setState(() => isLoading = false);
       }
     }
+  }
 
+  void _navigateToScreen(String route) {
+    switch (route) {
+      case 'consultations':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
+        );
+        break;
+      case 'appointments':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const UpcomingAppointmentsScreen()),
+        );
+        break;
+      case 'chat':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const UpcomingAppointmentsScreen()),
+        );
+        break;
+      case 'advice':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DoctorAdviceScreen()),
+        );
+      case 'statistics':
+        Navigator.pushNamed(context, '/doctor/statistics');
+        break;
+      case 'profile':
+        Navigator.pushNamed(context, '/doctor/profile');
+        break;
+      default:
+        break;
+    }
+  }
 
-  }  @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Welcome, Dr. ${doctorName.split(' ').first}'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              // Navigate to profile screen
-              Navigator.pushNamed(context, '/doctor/profile');
-            },
-          ),
-        ],
-      ),
+      backgroundColor: Colors.grey[50],
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildHomeContent(),
@@ -198,111 +243,76 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   Widget _buildHomeContent() {
     return RefreshIndicator(
       onRefresh: _loadDoctorInfo,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildWelcomeCard(),
-            const SizedBox(height: 16),
-            _buildAvailabilityCard(),
-            const SizedBox(height: 16),
-            _buildStatsRow(),
-            const SizedBox(height: 24),
-            _buildFeatureGrid(),
-            const SizedBox(height: 24),
-            _buildAdviceSection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWelcomeCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade700, Colors.blue.shade500],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Doctor Dashboard',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Manage your consultations, appointments, and patient interactions',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.9),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvailabilityCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(
-              isAvailable ? Icons.check_circle : Icons.do_not_disturb_on,
-              color: isAvailable ? Colors.green : Colors.red,
-              size: 28,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
+      child: CustomScrollView(
+        slivers: [
+          _buildAppBar(),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Current Status: ${isAvailable ? 'Available' : 'Not Available'}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  const SizedBox(height: 16),
+                  DoctorHomeWidgets.buildAvailabilityCard(
+                    isAvailable: isAvailable,
+                    onToggle: _toggleAvailability,
                   ),
-                  Text(
-                    isAvailable
-                        ? 'You can receive new consultation requests'
-                        : 'You are not receiving new consultation requests',
+                  const SizedBox(height: 24),
+                  _buildStatsRow(),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Quick Actions',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _buildFeatureGrid(),
+                  const SizedBox(height: 24),
+                  _buildUpcomingSection(),
+                  const SizedBox(height: 100), // Bottom padding
                 ],
               ),
             ),
-            Switch(
-              value: isAvailable,
-              onChanged: (value) => _toggleAvailability(),
-              activeColor: Colors.green,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      expandedHeight: 200.0,
+      floating: false,
+      pinned: true,
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        title: Text(
+          doctorName.isEmpty 
+              ? 'Doctor Dashboard' 
+              : 'Dr. ${doctorName.split(' ').first}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            DoctorHomeWidgets.buildAppBarBackground(),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              right: 20,
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                radius: 20,
+                child: IconButton(
+                  icon: const Icon(Icons.person, color: Color(0xFF1976D2), size: 20),
+                  onPressed: () => _navigateToScreen('profile'),
+                ),
+              ),
             ),
           ],
         ),
@@ -314,252 +324,99 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
     return Row(
       children: [
         Expanded(
-          child: _buildStatsCard(
-            'Pending Consultations',
-            pendingConsultations.toString(),
-            Icons.medical_services,
-            Colors.orange,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
-              );
-            },
+          child: DoctorHomeWidgets.buildStatsCard(
+            title: 'Pending Requests',
+            value: pendingConsultations.toString(),
+            icon: Icons.medical_services_outlined,
+            color: const Color(0xFFF57C00),
+            onTap: () => _navigateToScreen('consultations'),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: _buildStatsCard(
-            'Upcoming Appointments',
-            upcomingAppointments.toString(),
-            Icons.event,
-            Colors.purple,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const UpcomingAppointmentsScreen()),
-              );
-            },
+          child: DoctorHomeWidgets.buildStatsCard(
+            title: 'Upcoming Appointments',
+            value: upcomingAppointments.toString(),
+            icon: Icons.event_note_outlined,
+            color: const Color(0xFF7B1FA2),
+            onTap: () => _navigateToScreen('appointments'),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildStatsCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: color, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
   Widget _buildFeatureGrid() {
-    return GridView.count(
+    final List<Map<String, dynamic>> features = [
+      {
+        'title': 'Consultations',
+        'icon': Icons.medical_services_outlined,
+        'color': const Color(0xFFF57C00),
+        'route': 'consultations',
+      },
+      {
+        'title': 'Chat',
+        'icon': Icons.chat_outlined,
+        'color': const Color(0xFF43A047),
+        'route': 'chat',
+      },
+      {
+        'title': 'Appointments',
+        'icon': Icons.calendar_today_outlined,
+        'color': const Color(0xFF7B1FA2),
+        'route': 'appointments',
+      },
+      {
+        'title': 'Post Advice',
+        'icon': Icons.tips_and_updates_outlined,
+        'color': const Color(0xFF1976D2),
+        'route': 'advice',
+      },
+    ];
+
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      mainAxisSpacing: 16,
-      crossAxisSpacing: 16,
-      children: [
-        _buildFeatureCard(
-          title: 'Consultation Requests',
-          icon: Icons.medical_services,
-          color: Colors.orange,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
-            );
-          },
-        ),
-        _buildFeatureCard(
-          title: 'Chat Consultations',
-          icon: Icons.chat,
-          color: Colors.green,
-          onTap: () {
-           Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const  UpcomingAppointmentsScreen()),
-);
-          },
-        ),
-        _buildFeatureCard(
-          title: 'Upcoming Appointments',
-          icon: Icons.calendar_today,
-          color: Colors.purple,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const UpcomingAppointmentsScreen()),
-            );
-          },
-        ),
-        _buildFeatureCard(
-          title: 'Post Advice',
-          icon: Icons.tips_and_updates,
-          color: Colors.blue,
-          onTap: () {
-            Navigator.pushNamed(context, '/doctor/advice');
-          },
-        ),
-      ],
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.2,
+      ),
+      itemCount: features.length,
+      itemBuilder: (context, index) {
+        final feature = features[index];
+        return DoctorHomeWidgets.buildFeatureCard(
+          title: feature['title'],
+          icon: feature['icon'],
+          color: feature['color'],
+          onTap: () => _navigateToScreen(feature['route']),
+        );
+      },
     );
   }
 
-  Widget _buildFeatureCard({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: 36,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdviceSection() {
+  Widget _buildUpcomingSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Quick Actions',
+          'Additional Tools',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: Color(0xFF333333),
           ),
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionCard(
-                title: 'Post Health Tip',
-                icon: Icons.lightbulb_outline,
-                onTap: () {
-                  Navigator.pushNamed(context, '/doctor/advice');
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildQuickActionCard(
-                title: 'View Statistics',
-                icon: Icons.bar_chart,
-                onTap: () {
-                  Navigator.pushNamed(context, '/doctor/statistics');
-                },
-              ),
-            ),
-          ],
+        DoctorHomeWidgets.buildActionCard(
+          title: 'View Statistics',
+          description: 'Track your consultation metrics',
+          icon: Icons.bar_chart,
+          color: const Color(0xFF00897B),
+          onTap: () => _navigateToScreen('statistics'),
         ),
       ],
     );
   }
-
-  Widget _buildQuickActionCard({
-    required String title,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: Colors.blue),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios, size: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
-

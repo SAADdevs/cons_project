@@ -170,19 +170,13 @@ class DoctorController {
     static async getDoctorsWithNames(req, res) {
         try {
             const query = `
-                SELECT d.id, d.user_id, u.full_name, d.specialties, d.hospital, d.is_verified, d.is_available
+                SELECT d.id, d.user_id, u.full_name, d.specialties, d.is_verified
                 FROM doctors d
                 JOIN users u ON d.user_id = u.id
                 WHERE u.role = 'doctor'
             `;
             
             const result = await pool.query(query);
-            
-            // Log for debugging
-            console.log(`Found ${result.rows.length} doctors with names`);
-            if (result.rows.length > 0) {
-                console.log('Sample doctor:', result.rows[0]);
-            }
             
             res.status(200).json(result.rows);
         } catch (error) {

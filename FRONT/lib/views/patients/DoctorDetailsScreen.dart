@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/services/doctor_service.dart';
+import 'package:my_app/services/DoctorService.dart';
 import '../../core/utils/constants.dart';
-import '../../core/models/doctor_model.dart';
 import '../../services/consultation_service.dart';
 import '../../services/auth_service_api.dart';
 

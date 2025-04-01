@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:my_app/services/DoctorService.dart';
 import '../../core/utils/constants.dart';
-import '../../services/doctor_service.dart';
 import '../../services/consultation_service.dart';
 
 enum ConsultationType {

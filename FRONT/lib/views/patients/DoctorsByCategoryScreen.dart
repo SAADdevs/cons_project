@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/services/DoctorService.dart';
 import 'package:my_app/views/patients/DoctorDetailsScreen.dart';
 import '../../core/utils/constants.dart';
-import '../../services/doctor_service.dart';
-import '../../core/models/doctor_model.dart';
+import 'package:my_app/services/DoctorService.dart' as doctor_service_upper;
 
 class DoctorsBySpecialtyScreen extends StatefulWidget {
   final String specialty;
@@ -18,11 +16,11 @@ class DoctorsBySpecialtyScreen extends StatefulWidget {
 }
 
 class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
-  List<Doctor> _doctors = [];
+  List<doctor_service_upper.Doctor> _doctors = [];
   bool _isLoading = true;
   String _errorMessage = '';
   final TextEditingController _searchController = TextEditingController();
-  List<Doctor> _filteredDoctors = [];
+  List<doctor_service_upper.Doctor> _filteredDoctors = [];
 
   @override
   void initState() {
@@ -44,7 +42,7 @@ class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
         _errorMessage = '';
       });
 
-final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);      
+      final doctors = await doctor_service_upper.DoctorService.getDoctorsBySpecialty(widget.specialty);      
       setState(() {
         _doctors = doctors;
         _filteredDoctors = doctors;
@@ -221,7 +219,7 @@ final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);
     );
   }
 
-  Widget _buildDoctorCard(Doctor doctor) {
+  Widget _buildDoctorCard(doctor_service_upper.Doctor doctor) {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.only(bottom: 16),

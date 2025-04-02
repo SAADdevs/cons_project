@@ -9,6 +9,7 @@ const upcomingAppointmentsRoutes = require('./routes/upcomingAppointmentsRoutes'
 const healthAdviceRoutes = require('./routes/healthAdviceRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes'); 
 const chatRoutes = require('./routes/chatRoutes'); // Add the chat routes
+const doctorHealthAdviceRoutes = require('./routes/doctorHealthAdviceRoutes'); // Add this line
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/api/upcoming-appointments', upcomingAppointmentsRoutes);
 app.use('/api/health-advice', healthAdviceRoutes);
 app.use('/api/dashboard', statisticsRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/doctor-advice', doctorHealthAdviceRoutes); // Add this line
 
 // Simple test route
 app.get('/api/test', (req, res) => {

@@ -1,11 +1,11 @@
 // lib/services/chat_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:my_app/basrel.dart';
 import '../core/models/chat_message.dart';
 import '../services/auth_service_api.dart';
 
 class ChatService {
-  static const String baseUrl = "http://192.168.1.10:5000/api/chat"; // Update with your server IP
 
   // Send a new message
   static Future<ChatMessage> sendMessage({

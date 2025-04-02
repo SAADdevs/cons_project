@@ -50,7 +50,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
         // Get doctor profile from API (as a fallback or for additional data)
         final token = await ApiService.getAuthToken();
         if (token != null) {
-          // Try different endpoint formats if the original doesn't work
+        // Try different endpoint formats if the original doesn't work
           final List<String> endpoints = [
             "$baseUrl/doctor",
             "$baseUrl/doctors/$doctorId",

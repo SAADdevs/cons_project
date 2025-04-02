@@ -23,4 +23,4 @@ class MyApp extends StatelessWidget {
       home: LoginScreen(), // Set the DoctorConsultationScreen as the home screen
     );             
   }  
-}
+} 

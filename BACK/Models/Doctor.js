@@ -78,6 +78,19 @@ class Doctor {
             throw error;
         }
     }
+        // Add this to models/Doctor.js
+    static async getDoctorByUserId(userId) {
+        try {
+        const result = await pool.query(
+            "SELECT * FROM doctors WHERE user_id = $1", 
+            [userId]
+        );
+        return result.rows[0]; // Return the doctor or null if not found
+        } catch (error) {
+        console.error("Error in getDoctorByUserId:", error);
+        throw error;
+        }
+    }
 }
 
 module.exports = Doctor;

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/services/DoctorService.dart';
 import 'package:my_app/views/patients/DoctorDetailsScreen.dart';
 import '../../core/utils/constants.dart';
+<<<<<<< HEAD
 import '../../core/models/doctor_model.dart' as model;
+=======
+import 'package:my_app/services/DoctorService.dart' as doctor_service_upper;
+>>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
 
 class DoctorsBySpecialtyScreen extends StatefulWidget {
   final String specialty;
@@ -17,11 +20,19 @@ class DoctorsBySpecialtyScreen extends StatefulWidget {
 }
 
 class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
+<<<<<<< HEAD
   List<model.Doctor> _doctors = [];
   bool _isLoading = true;
   String _errorMessage = '';
   final TextEditingController _searchController = TextEditingController();
   List<model.Doctor> _filteredDoctors = [];
+=======
+  List<doctor_service_upper.Doctor> _doctors = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+  final TextEditingController _searchController = TextEditingController();
+  List<doctor_service_upper.Doctor> _filteredDoctors = [];
+>>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
 
   @override
   void initState() {
@@ -43,6 +54,7 @@ class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
         _errorMessage = '';
       });
 
+<<<<<<< HEAD
       // Debug log to track the process
       debugPrint('Fetching doctors with specialty: ${widget.specialty}');
       
@@ -57,6 +69,14 @@ class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
           _isLoading = false;
         });
       }
+=======
+      final doctors = await doctor_service_upper.DoctorService.getDoctorsBySpecialty(widget.specialty);      
+      setState(() {
+        _doctors = doctors;
+        _filteredDoctors = doctors;
+        _isLoading = false;
+      });
+>>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
     } catch (e) {
       debugPrint('Error in _fetchDoctors: $e');
       if (mounted) {
@@ -232,7 +252,11 @@ class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildDoctorCard(model.Doctor doctor) {
+=======
+  Widget _buildDoctorCard(doctor_service_upper.Doctor doctor) {
+>>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
     return Card(
       elevation: 4,
       margin: const EdgeInsets.only(bottom: 16),

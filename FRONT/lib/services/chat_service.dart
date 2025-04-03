@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+<<<<<<< HEAD
 import 'package:my_app/core/models/consultation.dart';
 import '../basrel.dart';
 import '../core/models/chat_message_model.dart';
@@ -9,6 +10,51 @@ import '../services/auth_service_api.dart';
 
 class ChatService {
   // Get consultation chat history
+=======
+import 'package:my_app/basrel.dart';
+import '../core/models/chat_message.dart';
+import '../services/auth_service_api.dart';
+
+class ChatService {
+
+  // Send a new message
+  static Future<ChatMessage> sendMessage({
+    required int senderId,
+    required int receiverId,
+    required int consultationId,
+    required String messageText,
+  }) async {
+    try {
+      final token = await ApiService.getAuthToken();
+      if (token == null) throw Exception('Authentication token not found');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'sender_id': senderId,
+          'receiver_id': receiverId,
+          'consultation_id': consultationId,
+          'message_text': messageText,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        return ChatMessage.fromJson(responseData['chat_message']);
+      } else {
+        throw Exception('Failed to send message: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error sending message: $e');
+    }
+  }
+
+  // Get chat history for a consultation
+>>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
   static Future<List<ChatMessage>> getConsultationChat(
     int consultationId, 
     int userId,

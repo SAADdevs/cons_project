@@ -5,34 +5,45 @@ const Doctor = require('../Models/Doctor');
 class UpcomingAppointmentController {
     // Get upcoming appointments for a doctor
    // In controllers/UpcomingAppointmentController.js
-static async getDoctorUpcomingAppointments(req, res) {
+// In Models/UpcomingAppointment.js
+static async getDoctorUpcomingAppointments(doctorId) {
     try {
-        const userId = req.params.doctor_id;
-        console.log('Received request for user_id:', userId);
-        
-        // First get the doctor record by user ID
-        const doctor = await Doctor.getDoctorByUserId(userId);
-        if (!doctor) {
-            console.log(`Doctor with user ID ${userId} not found`);
-            return res.status(404).json({ message: "Doctor not found" });
-        }
-        
-        const doctorId = doctor.id;
-        console.log(`Found doctor ID ${doctorId} for user ID ${userId}, proceeding to fetch appointments`);
-        
-        // Fetch upcoming appointments using the doctor ID
-        const appointments = await UpcomingAppointment.getDoctorUpcomingAppointments(doctorId);
-        
-        console.log(`Returning ${appointments.length} appointments`);
-        res.status(200).json(appointments);
+      console.log('Getting upcoming appointments for doctor ID:', doctorId);
+      
+      const query = `
+        SELECT 
+          c.id AS consultation_id,
+          c.patient_id,
+          c.status,
+          c.type,
+          c.is_emergency,
+          c.consultation_date,
+          u.full_name AS patient_name,
+          p.age AS patient_age,
+          p.gender AS patient_gender,
+          c.created_at
+        FROM 
+          consultations c
+        JOIN 
+          patients p ON c.patient_id = p.id
+        JOIN 
+          users u ON p.user_id = u.id
+        WHERE 
+          c.doctor_id = $1
+          AND c.status = 'accepted'
+        ORDER BY 
+          c.consultation_date ASC;
+      `;
+      
+      const result = await pool.query(query, [doctorId]);
+      console.log(`Found ${result.rows.length} upcoming appointments`);
+      
+      return result.rows;
     } catch (error) {
-        console.error('Error in getDoctorUpcomingAppointments:', error);
-        res.status(500).json({ 
-            message: "Server error", 
-            error: error.message 
-        });
+      console.error('Error in getDoctorUpcomingAppointments:', error);
+      throw error;
     }
-}
+  }
 
     // Count upcoming appointments for a doctor
     static async countDoctorUpcomingAppointments(req, res) {

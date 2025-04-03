@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:my_app/basrel.dart';
+import 'package:my_app/services/auth_service_api.dart';
 
 class AdminDoctorsPage extends StatefulWidget {
   const AdminDoctorsPage({Key? key}) : super(key: key);
@@ -11,11 +12,11 @@ class AdminDoctorsPage extends StatefulWidget {
   State<AdminDoctorsPage> createState() => _AdminDoctorsPageState();
 }
 
-class _AdminDoctorsPageState extends State<AdminDoctorsPage> {  
-
+class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
   bool _isLoading = true;
   List<dynamic> _allDoctors = [];
   String _searchQuery = '';
+  String _errorMessage = '';
   
   // Map to store user names - will be populated dynamically
   Map<int, String> _userNames = {};
@@ -28,38 +29,70 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
   
   // Load both doctors and users
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
 
     try {
+      // Get authentication token
+      final token = await ApiService.getAuthToken();
+      
+      // Prepare headers
+      final headers = {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      };
+
       // First load doctors
-      final doctorResponse = await http.get(Uri.parse('$baseUrl/doctors'));
+      final doctorResponse = await http.get(
+        Uri.parse('$baseUrl/doctors'),
+        headers: headers,
+      );
       
       if (doctorResponse.statusCode != 200) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load doctors: ${doctorResponse.statusCode}';
+        });
         _showSnackBar('Failed to load doctors: ${doctorResponse.statusCode}');
         return;
       }
       
       final doctorsData = json.decode(doctorResponse.body);
       
-      // Then load users to get names
-      final userResponse = await http.get(Uri.parse('$baseUrl/api/with-names'));
+      // Fetch user names
+      final namesResponse = await http.get(
+        Uri.parse('$baseUrl/doctors/with-names'),
+        headers: headers,
+      );
       
-      if (userResponse.statusCode != 200) {
-        setState(() => _isLoading = false);
-        _showSnackBar('Failed to load user names: ${userResponse.statusCode}');
+      print('Names Response Status: ${namesResponse.statusCode}');
+      print('Names Response Body: ${namesResponse.body}');
+      
+      if (namesResponse.statusCode != 200) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to load user names: ${namesResponse.statusCode}';
+          _allDoctors = doctorsData;
+        });
+        _showSnackBar('Failed to load user names: ${namesResponse.statusCode}');
         return;
       }
       
-      final doctorsWithNames = json.decode(userResponse.body);
+      final namesData = json.decode(namesResponse.body);
       
       // Create a map of user IDs to names
       final Map<int, String> userNameMap = {};
-      for (var doctor in doctorsWithNames) {
+      for (var doctor in namesData) {
         if (doctor['user_id'] != null && doctor['full_name'] != null) {
           userNameMap[doctor['user_id']] = doctor['full_name'];
         }
       }
+      
+      // Debug print
+      print('User Name Map: $userNameMap');
+      print('Doctors Data: $doctorsData');
       
       setState(() {
         _userNames = userNameMap;
@@ -68,7 +101,10 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       });
     } catch (e) {
       print('Error loading data: $e');
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Error: $e';
+      });
       _showSnackBar('Error: $e');
     }
   }
@@ -97,7 +133,12 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       final endpoint = shouldVerify ? 'approve' : 'unverify';
       final url = Uri.parse('$baseUrl/doctors/$endpoint/$doctorId');
       
+      print('Making request to: $url');
+      
       final response = await http.put(url);
+      
+      print('Toggle verification response status: ${response.statusCode}');
+      print('Toggle verification response body: ${response.body}');
       
       if (response.statusCode == 200) {
         _showSnackBar('Doctor ${shouldVerify ? 'verified' : 'unverified'} successfully');
@@ -106,13 +147,23 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
         _showSnackBar('Operation failed: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error in _toggleVerification: $e');
       _showSnackBar('Error: $e');
     }
   }
 
   // Get doctor's name from our map
   String _getDoctorName(int userId) {
-    return _userNames[userId] ?? 'Doctor $userId';
+    // First try to get the full name from the map
+    String? fullName = _userNames[userId];
+    
+    // If full name exists, return it
+    if (fullName != null && fullName.isNotEmpty) {
+      return fullName;
+    }
+    
+    // If no full name, return a generic name with the user ID
+    return 'Doctor $userId';
   }
 
   @override
@@ -154,6 +205,25 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
               ),
             ),
           ),
+          
+          // Error message (if any)
+          if (_errorMessage.isNotEmpty && !_isLoading)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.5)),
+                ),
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+            ),
           
           // Stats cards
           if (!_isLoading)

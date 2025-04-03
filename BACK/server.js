@@ -11,8 +11,14 @@ const doctorRoutes = require('./routes/doctorRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 const consultationRoutes = require('./routes/consultationRoutes');
 const healthAdviceRoutes = require('./routes/healthAdviceRoutes');
+<<<<<<< HEAD
 const chatRoutes = require('./routes/chatRoutes');
 const errorHandler = require('./middlewares/ErrorMiddleware');
+=======
+const statisticsRoutes = require('./routes/statisticsRoutes'); 
+const chatRoutes = require('./routes/chatRoutes'); // Add the chat routes
+const doctorHealthAdviceRoutes = require('./routes/doctorHealthAdviceRoutes'); // Add this line
+>>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
 
 dotenv.config();
 
@@ -49,6 +55,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/consultations', consultationRoutes);
 app.use('/api/health-advice', healthAdviceRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/doctor-advice', doctorHealthAdviceRoutes); // Add this line
 
 // Test route
 app.get('/api/test', (req, res) => {

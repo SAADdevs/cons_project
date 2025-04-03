@@ -1,54 +1,99 @@
 // controllers/UpcomingAppointmentsController.js
 const UpcomingAppointment = require('../Models/UpcomingAppointment');
 const Doctor = require('../Models/Doctor');
+const pool = require('../config/db'); // Add this import statement
 
 class UpcomingAppointmentController {
     // Get upcoming appointments for a doctor
-    static async getDoctorUpcomingAppointments(req, res) {
-        try {
-            const userId = req.params.doctor_id;
-            console.log('Received request for doctor_id:', userId);
-            
-            // Try to parse as integer if it's a string
-            const userIdNum = parseInt(userId);
-            
-            let doctorId;
-            
-            // Try direct doctor ID first
-            if (!isNaN(userIdNum)) {
-                // Check if this is directly a doctor ID
-                const doctorDirectCheck = await pool.query('SELECT id FROM doctors WHERE id = $1', [userIdNum]);
-                if (doctorDirectCheck.rows.length > 0) {
-                    doctorId = userIdNum;
-                    console.log(`Using direct doctor ID: ${doctorId}`);
-                } else {
-                    // Then try as a user ID to get doctor ID
-                    const doctor = await Doctor.getDoctorByUserId(userIdNum);
-                    if (doctor) {
-                        doctorId = doctor.id;
-                        console.log(`Found doctor ID ${doctorId} for user ID ${userId}`);
-                    } else {
-                        console.log(`No doctor found for user ID ${userId}`);
-                        return res.status(404).json({ message: "Doctor not found" });
-                    }
-                }
-            } else {
-                return res.status(400).json({ message: "Invalid doctor ID format" });
-            }
-            
-            // Fetch upcoming appointments using the doctor ID
-            const appointments = await UpcomingAppointment.getDoctorUpcomingAppointments(doctorId);
-            
-            console.log(`Returning ${appointments.length} appointments`);
-            res.status(200).json(appointments);
-        } catch (error) {
-            console.error('Error in getDoctorUpcomingAppointments:', error);
-            res.status(500).json({ 
-                message: "Server error", 
-                error: error.message 
+   // Fix in UpcomingAppointmentController.js
+// controllers/UpcomingAppointmentsController.js
+static async getDoctorUpcomingAppointments(req, res) {
+    try {
+        const inputDoctorId = req.params.doctor_id;
+        console.log('------- DETAILED APPOINTMENT RETRIEVAL -------');
+        console.log(`Received doctor_id: ${inputDoctorId}`);
+
+        // Ensure input is a number
+        const doctorId = parseInt(inputDoctorId, 10);
+        if (isNaN(doctorId)) {
+            console.error('Invalid doctor ID format');
+            return res.status(400).json({ 
+                message: "Invalid doctor ID format",
+                receivedId: inputDoctorId 
             });
         }
+
+        // First, verify the doctor exists
+        const doctorCheck = await pool.query(
+            'SELECT id FROM doctors WHERE id = $1 OR user_id = $1', 
+            [doctorId]
+        );
+
+        if (doctorCheck.rows.length === 0) {
+            console.error(`No doctor found matching ID: ${doctorId}`);
+            return res.status(404).json({ 
+                message: "Doctor not found",
+                searchedId: doctorId 
+            });
+        }
+
+        // Determine the correct doctor ID
+        const correctDoctorId = doctorCheck.rows[0].id;
+        console.log(`Resolved Doctor ID: ${correctDoctorId}`);
+
+        // Comprehensive query to fetch upcoming appointments
+        const query = `
+            SELECT 
+                c.id AS consultation_id,
+                c.patient_id,
+                c.status,
+                c.type,
+                c.is_emergency,
+                c.consultation_date,
+                u.full_name AS patient_name,
+                p.age AS patient_age,
+                p.gender AS patient_gender,
+                c.created_at
+            FROM 
+                consultations c
+            JOIN 
+                patients p ON c.patient_id = p.id
+            JOIN 
+                users u ON p.user_id = u.id
+            WHERE 
+                c.doctor_id = $1
+                AND c.status = 'accepted'
+                AND c.consultation_date > NOW()
+            ORDER BY 
+                c.consultation_date ASC;
+        `;
+        
+        const result = await pool.query(query, [correctDoctorId]);
+        
+        console.log(`Found ${result.rows.length} upcoming appointments`);
+        
+        // Log detailed appointment information
+        result.rows.forEach((apt, index) => {
+            console.log(`Appointment ${index + 1}:`, {
+                id: apt.consultation_id,
+                patientName: apt.patient_name,
+                date: apt.consultation_date,
+                type: apt.type
+            });
+        });
+
+        console.log('------- END OF APPOINTMENT RETRIEVAL -------');
+        
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Comprehensive Error in Appointment Retrieval:', error);
+        res.status(500).json({ 
+            message: "Server error", 
+            errorDetails: error.message,
+            stack: error.stack
+        });
     }
+}
 
     // Count upcoming appointments for a doctor
     static async countDoctorUpcomingAppointments(req, res) {

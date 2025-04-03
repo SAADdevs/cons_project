@@ -7,9 +7,8 @@ import '../services/auth_service_api.dart';
 import 'dart:math'; // Import for min function
 
 class ConsultationService {
-
-
-static Future<Consultation> requestConsultation({
+  // Request a new consultation
+  static Future<Consultation> requestConsultation({
     required int patientId,
     required int doctorId,
     required String type,
@@ -54,36 +53,58 @@ static Future<Consultation> requestConsultation({
         return Consultation.fromJson(responseBody);
       } else {
         // Parse error message from response
-        final responseBody = jsonDecode(response.body);
+        Map<String, dynamic> responseBody = {};
+        try {
+          responseBody = jsonDecode(response.body);
+        } catch (e) {
+          throw Exception('Failed to parse API response: ${response.body}');
+        }
         throw Exception(responseBody['message'] ?? 'Failed to request consultation');
       }
     } catch (e) {
+      print('Error in requestConsultation: $e');
       throw Exception('Error requesting consultation: $e');
     }
   }
 
-  // Fetch pending consultations for a doctor
+  // Fetch pending consultations for a doctor with improved error handling
   static Future<List<Consultation>> fetchPendingConsultations(int doctorId) async {
     try {
       final token = await ApiService.getAuthToken();
       if (token == null) throw Exception('Authentication token not found');
       
-      // Changed URL to match your actual backend route
+      print("Fetching pending consultations for doctor ID: $doctorId");
+      
+      // Request URL
+      final url = '$baseUrl/consultations/doctor/$doctorId';
+      print("Requesting URL: $url");
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/consultations/doctor/$doctorId'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
       
+      print("Response status: ${response.statusCode}");
+      if (response.body.isNotEmpty) {
+        print("Response preview: ${response.body.substring(0, min(100, response.body.length))}...");
+      }
+      
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => Consultation.fromJson(json)).toList();
+        try {
+          final List<dynamic> data = jsonDecode(response.body);
+          return data.map((json) => Consultation.fromJson(json)).toList();
+        } catch (e) {
+          print("Error parsing consultations data: $e");
+          throw Exception('Error parsing consultations: $e');
+        }
       } else {
         throw Exception('Failed to load consultations: ${response.statusCode}');
       }
     } catch (e) {
+      print("Error in fetchPendingConsultations: $e");
       throw Exception('Error fetching consultations: $e');
     }
   }
@@ -108,9 +129,13 @@ static Future<Consultation> requestConsultation({
         requestBody['consultation_date'] = consultationDate.toIso8601String();
       }
       
-      // Changed URL to match your actual backend route
+      print("Updating consultation status: $requestBody");
+      
+      final url = '$baseUrl/consultations/update-status';
+      print("Request URL: $url");
+      
       final response = await http.put(
-        Uri.parse('$baseUrl/consultations/update-status'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -118,48 +143,72 @@ static Future<Consultation> requestConsultation({
         body: jsonEncode(requestBody),
       );
       
+      print("Update status response: ${response.statusCode}");
+      
       if (response.statusCode != 200) {
-        final responseBody = jsonDecode(response.body);
+        Map<String, dynamic> responseBody = {};
+        try {
+          responseBody = jsonDecode(response.body);
+        } catch (e) {
+          throw Exception('Failed to parse API response: ${response.body}');
+        }
         throw Exception(responseBody['message'] ?? 'Failed to update consultation status');
       }
     } catch (e) {
+      print("Error in updateConsultationStatus: $e");
       throw Exception('Error updating consultation status: $e');
     }
   }
 
   // Fetch accepted consultations (upcoming appointments)
-  static Future<List<Consultation>> fetchUpcomingConsultations(int doctorId) async {
-    try {
-      final token = await ApiService.getAuthToken();
-      if (token == null) throw Exception('Authentication token not found');
-      
-      // Make sure this URL matches your server's endpoint structure
-      final url = '$baseUrl/upcoming-appointments/doctor/$doctorId';
-      print("Requesting URL: $url"); // Add this for debugging
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+  // consultation_service.dart - Update the fetchUpcomingConsultations method
 
-      print("Response status: ${response.statusCode}");
-      if (response.body.isNotEmpty) {
-        print("Response body (first 100 chars): ${response.body.substring(0, min(100, response.body.length))}...");
+static Future<List<Consultation>> fetchUpcomingConsultations(int doctorId) async {
+  try {
+    final token = await ApiService.getAuthToken();
+    if (token == null) throw Exception('Authentication token not found');
+    
+    print("Fetching upcoming consultations for doctor ID: $doctorId");
+    
+    // Using try-catch with multiple endpoint formats to increase reliability
+    List<String> endpoints = [
+      '$baseUrl/upcoming-appointments/doctor/$doctorId',
+      '$baseUrl/consultations/upcoming/$doctorId',
+      '$baseUrl/consultations/doctor/$doctorId/upcoming',
+    ];
+    
+    Exception? lastException;
+    
+    for (String endpoint in endpoints) {
+      try {
+        print("Trying endpoint: $endpoint");
+        final response = await http.get(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 10)); // Add timeout for better error handling
+        
+        if (response.statusCode == 200) {
+          print("Success! Response body: ${response.body.substring(0, min(100, response.body.length))}...");
+          final List<dynamic> data = jsonDecode(response.body);
+          return data.map((json) => Consultation.fromJson(json)).toList();
+        }
+      } catch (e) {
+        print("Error with endpoint $endpoint: $e");
+        lastException = Exception(e.toString());
+        // Continue to next endpoint
       }
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => Consultation.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load upcoming consultations: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error fetching upcoming consultations: $e');
     }
+    
+    // If we've tried all endpoints and none worked
+    throw lastException ?? Exception('Failed to load upcoming consultations after trying multiple endpoints');
+  } catch (e) {
+    print("Final error in fetchUpcomingConsultations: $e");
+    throw Exception('Error fetching upcoming consultations: $e');
   }
+}
   
   // Cancel an upcoming appointment
   static Future<void> cancelUpcomingAppointment(int consultationId) async {
@@ -181,7 +230,7 @@ static Future<Consultation> requestConsultation({
       
       print("Cancel response status: ${response.statusCode}");
       if (response.body.isNotEmpty) {
-        print("Cancel response body: ${response.body}");
+        print("Cancel response preview: ${response.body.substring(0, min(100, response.body.length))}...");
       }
       
       if (response.statusCode != 200) {
@@ -227,31 +276,6 @@ static Future<Consultation> requestConsultation({
       }
     } catch (e) {
       throw Exception('Error counting upcoming consultations: $e');
-    }
-  }
-
-  // Fetch consultation history
-  static Future<List<Consultation>> fetchConsultationHistory(int doctorId) async {
-    try {
-      final token = await ApiService.getAuthToken();
-      if (token == null) throw Exception('Authentication token not found');
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/consultations/history/$doctorId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => Consultation.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load consultation history');
-      }
-    } catch (e) {
-      throw Exception('Error fetching consultation history: $e');
     }
   }
 

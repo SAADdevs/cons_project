@@ -1,92 +1,145 @@
+// lib/core/models/consultation.dart
+import 'package:flutter/foundation.dart';
+
 class Consultation {
   final int id;
-  final String status;
-  final String type;
-  final bool isEmergency;
-  final DateTime? consultationDate;
-  final DateTime? createdAt;
-  
-  // Patient info
   final int patientId;
   final String? patientName;
-  
-  // Doctor info (may need to be fetched separately)
-  final int? doctorId;
+  final int doctorId;
   final String? doctorName;
   final String? doctorSpecialty;
-  
-  // Extra fields from API that might be useful
-  final String? patientEmail;
-  final int? patientAge;
-  final String? patientGender;
+  final String type;
+  final String status;
+  final bool isEmergency;
+  final dynamic consultationDate;
+  final dynamic createdAt;
 
   Consultation({
     required this.id,
-    required this.status,
-    required this.type,
-    required this.isEmergency,
     required this.patientId,
-    this.consultationDate,
-    this.createdAt,
     this.patientName,
-    this.doctorId,
+    required this.doctorId,
     this.doctorName,
     this.doctorSpecialty,
-    this.patientEmail,
-    this.patientAge,
-    this.patientGender,
+    required this.type,
+    required this.status,
+    required this.isEmergency,
+    this.consultationDate,
+    this.createdAt,
   });
 
   factory Consultation.fromJson(Map<String, dynamic> json) {
     return Consultation(
-      // Map consultation_id to id
-      id: json['consultation_id'] ?? json['id'] ?? 0,
-      
-      // Basic consultation fields
-      status: json['status'] ?? 'pending',
-      type: json['type'] ?? 'text',
-      isEmergency: json['is_emergency'] ?? false,
-      
-      // Date fields - handle both string and DateTime
-      consultationDate: json['consultation_date'] != null 
-          ? json['consultation_date'] is String 
-              ? DateTime.parse(json['consultation_date']) 
-              : json['consultation_date']
-          : null,
-      
-      createdAt: json['consultation_created_at'] != null || json['created_at'] != null
-          ? (json['consultation_created_at'] ?? json['created_at']) is String
-              ? DateTime.parse(json['consultation_created_at'] ?? json['created_at'])
-              : (json['consultation_created_at'] ?? json['created_at'])
-          : DateTime.now(),
-      
-      // Patient info
-      patientId: json['patient_id'] ?? 0,
-      patientName: json['patient_name'],
-      patientEmail: json['email'],
-      patientAge: json['age'],
-      patientGender: json['gender'],
-      
-      // Doctor info - might need to be fetched separately
-      doctorId: json['doctor_id'],
-      doctorName: json['doctor_name'] ?? json['doctor_full_name'],
-      doctorSpecialty: json['doctor_specialty'] ?? json['specialty'],
+      id: _parseId(json['id'] ?? json['consultation_id']),
+      patientId: _parseId(json['patient_id'] ?? 0),
+      patientName: (json['patient_name'] ?? json['patientName'] ?? json['name']) as String?,
+      doctorId: _parseId(json['doctor_id'] ?? 0),
+      doctorName: json['doctor_name'] as String?,
+      doctorSpecialty: json['doctor_specialty'] ?? json['specialties'] as String?,
+      type: (json['type'] ?? json['consultation_type'] as String?) ?? 'unknown',
+      status: (json['status'] as String?) ?? 'pending',
+      isEmergency: _parseBool(json['is_emergency']),
+      consultationDate: _parseDate(json['consultation_date'] ?? json['date']),
+      createdAt: json['created_at'] ?? json['consultation_created_at'],
     );
   }
 
+  // Safely parse ID, defaulting to 0 if null or invalid
+  static int _parseId(dynamic id) {
+    if (id == null) return 0;
+    return id is int ? id : int.tryParse(id.toString()) ?? 0;
+  }
+
+  // Safely parse boolean values
+  static bool _parseBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is String) {
+      return ['true', '1', 'yes'].contains(value.toLowerCase());
+    }
+    return false;
+  }
+
+  // Safely parse date values
+  static dynamic _parseDate(dynamic date) {
+    if (date == null) return null;
+    
+    try {
+      // If it's already a DateTime, return it
+      if (date is DateTime) return date;
+      
+      // If it's a string, parse it
+      if (date is String) {
+        return DateTime.parse(date);
+      }
+      
+      // If it's something else, return null
+      return null;
+    } catch (e) {
+      debugPrint('Error parsing date: $e, Original value: $date');
+      return null;
+    }
+  }
+
+  // Getter for patient age (returning null for now)
+  int? get patientAge => null;
+
+  // Getter for patient gender (returning null for now)
+  String? get patientGender => null;
+
+  // Helper method to safely get consultation date as DateTime
+  DateTime? get consultationDateTime {
+    return _parseDate(consultationDate);
+  }
+
+  // Helper method to safely get created date as DateTime
+  DateTime? get createdDateTime {
+    return _parseDate(createdAt);
+  }
+
+  // Convert to JSON for potential serialization
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'status': status,
-      'type': type,
-      'is_emergency': isEmergency,
-      'consultation_date': consultationDate?.toIso8601String(),
-      'created_at': createdAt?.toIso8601String(),
       'patient_id': patientId,
       'patient_name': patientName,
       'doctor_id': doctorId,
       'doctor_name': doctorName,
       'doctor_specialty': doctorSpecialty,
+      'type': type,
+      'status': status,
+      'is_emergency': isEmergency,
+      'consultation_date': consultationDate,
+      'created_at': createdAt,
     };
+  }
+
+  // Override toString for easy debugging
+  @override
+  String toString() {
+    return 'Consultation(id: $id, patient: $patientName, doctor: $doctorName, type: $type, status: $status, date: $consultationDate)';
+  }
+
+  // Equality comparison
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+  
+    return other is Consultation &&
+      other.id == id &&
+      other.patientId == patientId &&
+      other.doctorId == doctorId &&
+      other.type == type &&
+      other.status == status;
+  }
+
+  // Hash code for proper comparison
+  @override
+  int get hashCode {
+    return id.hashCode ^ 
+      patientId.hashCode ^ 
+      doctorId.hashCode ^ 
+      type.hashCode ^ 
+      status.hashCode;
   }
 }

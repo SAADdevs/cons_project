@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_app/basrel.dart';
+import 'package:my_app/views/chat/chat_list_screen.dart';
 import 'dart:convert';
 import 'package:my_app/views/patients/DoctorCategoriesScreen.dart';
 import 'package:my_app/views/patients/DoctorsByCategoryScreen.dart';
 import 'package:my_app/views/patients/MyConsultationsScreen.dart';
 import 'package:my_app/views/patients/HealthAdviceDetailsScreen.dart';
+import 'package:my_app/views/Chat/enhanced_chat_list_screen.dart';
 import 'package:my_app/views/profile/profile_screen.dart';
 import 'package:my_app/core/models/healthAdvice.dart';
 import 'package:my_app/services/auth_service_api.dart'; // Import auth service
@@ -31,7 +33,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     _pages = [
       const PatientHomePage(),
       const MyConsultationsScreen(),
-      const Center(child: Text('Chat feature coming soon')), // Placeholder for Chat tab
+      const ChatListScreen(), // Placeholder for Chat tab
       const ProfileScreen(),
     ];
   }
@@ -439,9 +441,9 @@ class _PatientHomePageState extends State<PatientHomePage> {
             title: 'Chat',
             color: Colors.purple,
             onTap: () {
-              // Chat functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Chat feature coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ChatListScreen()),
               );
             },
           ),

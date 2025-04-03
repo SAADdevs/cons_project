@@ -1,34 +1,42 @@
+// server.js
 const express = require('express');
+const http = require('http');
 const dotenv = require('dotenv');
+const cors = require('cors');
+const setupSocket = require('./config/socket');
+
+// Import routes
 const authRoutes = require('./routes/authRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const patientRoutes = require('./routes/patientRoutes');
-const errorHandler = require('./middlewares/ErrorMiddleware');
 const consultationRoutes = require('./routes/consultationRoutes');
-const upcomingAppointmentsRoutes = require('./routes/upcomingAppointmentsRoutes');
 const healthAdviceRoutes = require('./routes/healthAdviceRoutes');
-const statisticsRoutes = require('./routes/statisticsRoutes'); 
-const chatRoutes = require('./routes/chatRoutes'); // Add the chat routes
+const chatRoutes = require('./routes/chatRoutes');
+const errorHandler = require('./middlewares/ErrorMiddleware');
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = setupSocket(server);
 
 // Middleware
+app.use(cors({
+  origin: process.env.CLIENT_URL || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
 app.use(express.json());
 
-// CORS middleware for development
+// Make io accessible in routes
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
+  req.io = io;
   next();
 });
 
-// Debug middleware to log all requests
+// Debug middleware
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
@@ -36,24 +44,23 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api', doctorRoutes); 
+app.use('/api/doctors', doctorRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/consultations', consultationRoutes);
-app.use('/api/upcoming-appointments', upcomingAppointmentsRoutes); 
 app.use('/api/health-advice', healthAdviceRoutes);
-app.use('/api/dashboard', statisticsRoutes);
 app.use('/api/chat', chatRoutes);
 
-// Simple test route
+// Test route
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working!' });
 });
 
-// Global Error Handler
+// Error handler
 app.use(errorHandler);
 
-// Start the server 
+// Start the server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Socket.IO is initialized`);
 });

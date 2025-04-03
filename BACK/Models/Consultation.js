@@ -84,6 +84,11 @@ class Consultation {
 
         return result.rows[0];
     }
+
+    static async getById(id) {
+        const result = await pool.query("SELECT * FROM consultations WHERE id = $1", [id]);
+        return result.rows[0]; // return the first result (or null if not found)
+    }
 }
 
 module.exports = Consultation;

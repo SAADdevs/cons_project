@@ -2,27 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:my_app/services/DoctorService.dart';
 import 'package:my_app/views/patients/DoctorDetailsScreen.dart';
 import '../../core/utils/constants.dart';
-import '../../services/doctor_service.dart';
-import '../../core/models/doctor_model.dart';
+import '../../core/models/doctor_model.dart' as model;
 
 class DoctorsBySpecialtyScreen extends StatefulWidget {
   final String specialty;
 
   const DoctorsBySpecialtyScreen({
-    super.key, 
+    Key? key, 
     required this.specialty
-  });
+  }) : super(key: key);
 
   @override
   _DoctorsBySpecialtyScreenState createState() => _DoctorsBySpecialtyScreenState();
 }
 
 class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
-  List<Doctor> _doctors = [];
+  List<model.Doctor> _doctors = [];
   bool _isLoading = true;
   String _errorMessage = '';
   final TextEditingController _searchController = TextEditingController();
-  List<Doctor> _filteredDoctors = [];
+  List<model.Doctor> _filteredDoctors = [];
 
   @override
   void initState() {
@@ -44,17 +43,28 @@ class _DoctorsBySpecialtyScreenState extends State<DoctorsBySpecialtyScreen> {
         _errorMessage = '';
       });
 
-final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);      
-      setState(() {
-        _doctors = doctors;
-        _filteredDoctors = doctors;
-        _isLoading = false;
-      });
+      // Debug log to track the process
+      debugPrint('Fetching doctors with specialty: ${widget.specialty}');
+      
+      final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);
+      
+      debugPrint('Fetched ${doctors.length} doctors for ${widget.specialty}');
+      
+      if (mounted) {
+        setState(() {
+          _doctors = doctors;
+          _filteredDoctors = doctors;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load doctors: ${e.toString()}';
-        _isLoading = false;
-      });
+      debugPrint('Error in _fetchDoctors: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load doctors: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -84,8 +94,9 @@ final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onPressed: _showFilterBottomSheet,
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchDoctors,
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -191,7 +202,7 @@ final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);
           ),
           const SizedBox(height: 16),
           Text(
-            'No doctors found',
+            'No doctors found for ${widget.specialty}',
             style: TextStyle(
               fontSize: 18,
               color: Colors.grey[600],
@@ -199,7 +210,7 @@ final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);
           ),
           const SizedBox(height: 8),
           Text(
-            'Try a different search term',
+            'Try looking for a different specialty',
             style: TextStyle(
               color: Colors.grey[500],
             ),
@@ -221,126 +232,107 @@ final doctors = await DoctorService.getDoctorsBySpecialty(widget.specialty);
     );
   }
 
-  Widget _buildDoctorCard(Doctor doctor) {
+  Widget _buildDoctorCard(model.Doctor doctor) {
     return Card(
       elevation: 4,
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: CircleAvatar(
-          radius: 30,
-          backgroundColor: AppColors.primary.withOpacity(0.1),
-          child: Icon(
-            Icons.person,
-            color: AppColors.primary,
-            size: 30,
-          ),
-        ),
-        title: Text(
-          doctor.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              doctor.specialty,
-              style: TextStyle(
-                color: Colors.grey[600],
-              ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DoctorDetailsScreen(doctor: doctor),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(
-                  Icons.verified,
-                  color: doctor.isVerified ? Colors.green : Colors.grey,
-                  size: 16,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  doctor.isVerified ? 'Verified' : 'Not Verified',
-                  style: TextStyle(
-                    color: doctor.isVerified ? Colors.green : Colors.grey,
-                  ),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.circle,
-                  color: doctor.isAvailable ? Colors.green : Colors.red,
-                  size: 10,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  doctor.isAvailable ? 'Available' : 'Unavailable',
-                  style: TextStyle(
-                    color: doctor.isAvailable ? Colors.green : Colors.red,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        trailing: IconButton(
-          icon: Icon(
-            Icons.arrow_forward_ios,
-            color: AppColors.primary,
-          ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DoctorDetailsScreen(doctor: doctor),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _showFilterBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(25),
-        ),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          );
+        },
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              const Text(
-                'Filter Doctors',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              // Doctor avatar
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Text(
+                  doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : "?",
+                  style: TextStyle(
+                    fontSize: 24, 
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              // Add filter options here (e.g., availability, ratings)
-              ElevatedButton(
-                onPressed: () {
-                  // Apply filters
-                  Navigator.pop(context);
-                },
-                child: const Text('Apply Filters'),
+              const SizedBox(width: 16),
+              
+              // Doctor info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      doctor.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      doctor.specialty,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.verified,
+                          color: doctor.isVerified ? Colors.green : Colors.grey,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          doctor.isVerified ? 'Verified' : 'Not Verified',
+                          style: TextStyle(
+                            color: doctor.isVerified ? Colors.green : Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.circle,
+                          color: doctor.isAvailable ? Colors.green : Colors.red,
+                          size: 10,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          doctor.isAvailable ? 'Available' : 'Unavailable',
+                          style: TextStyle(
+                            color: doctor.isAvailable ? Colors.green : Colors.red,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Arrow icon
+              Icon(
+                Icons.arrow_forward_ios,
+                color: AppColors.primary,
+                size: 16,
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

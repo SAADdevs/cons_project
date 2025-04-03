@@ -184,7 +184,7 @@ class ApiService {
       
       // Using the correct endpoint that's used in admin_doctors_page.dart
       final response = await http.get(
-        Uri.parse("$baseUrl/doctors/with-names"),
+        Uri.parse("http://192.168.1.7:5000/api/doctors/with-names"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token"

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_app/basrel.dart';
 import '../core/models/consultation.dart';
@@ -280,29 +281,65 @@ static Future<Consultation> requestConsultation({
   }
   
   // Get patient's consultations
-  static Future<List<Consultation>> getPatientConsultations(int patientId) async {
-    try {
-      final token = await ApiService.getAuthToken();
-      if (token == null) throw Exception('Authentication token not found');
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/patients/consultations/$patientId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => Consultation.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load patient consultations: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error fetching patient consultations: $e');
+  static Future<List<Consultation>> getPatientConsultations(int userId) async {
+  try {
+    debugPrint('Fetching consultations for user ID: $userId');
+    
+    final token = await ApiService.getAuthToken();
+    if (token == null) throw Exception('Authentication token not found');
+    
+    // First check if user has a patient record
+    final patientIdResponse = await http.get(
+      Uri.parse('$baseUrl/patients/consultations/get-patient-id/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (patientIdResponse.statusCode != 200) {
+      debugPrint('User $userId does not have a patient profile. Status: ${patientIdResponse.statusCode}');
+      // Return empty list instead of throwing exception for better UX
+      return [];
     }
+    
+    // Extract the patient ID from the response
+    final patientData = jsonDecode(patientIdResponse.body);
+    final patientId = patientData['id'];
+    
+    debugPrint('Found patient ID: $patientId for user ID: $userId');
+    
+    // Now get the consultations using the patient ID
+    final response = await http.get(
+      Uri.parse('$baseUrl/patients/consultations/$patientId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    debugPrint('Response status code: ${response.statusCode}');
+    if (response.body.isNotEmpty) {
+      debugPrint('Response body: ${response.body}');
+    }
+    
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      debugPrint('Fetched ${data.length} consultations');
+      
+      final consultations = data.map((json) => Consultation.fromJson(json)).toList();
+      return consultations;
+    } else {
+      debugPrint('Failed to load consultations: ${response.body}');
+      // Return empty list instead of throwing exception for better UX
+      return [];
+    }
+  } catch (e) {
+    debugPrint('Error in getPatientConsultations: $e');
+    // Return empty list on error for better UX
+    return [];
   }
+}
 
  
 }

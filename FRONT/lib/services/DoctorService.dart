@@ -1,18 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:my_app/basrel.dart';
-import 'package:my_app/services/doctor_service.dart';
+import '../basrel.dart';
 import '../core/models/doctor_model.dart';
 import '../services/auth_service_api.dart';
 
 class DoctorService {
-
   // Get doctors by specialty
   static Future<List<Doctor>> getDoctorsBySpecialty(String specialty) async {
     try {
+      debugPrint('Getting doctors for specialty: $specialty');
+      
       final token = await ApiService.getAuthToken();
-      // Try to get token, if not available proceed without it
       final headers = {
         'Content-Type': 'application/json',
       };
@@ -21,35 +20,26 @@ class DoctorService {
         headers['Authorization'] = 'Bearer $token';
       }
 
-      // Debug log
-      debugPrint('Fetching doctors with specialty: $specialty');
-      debugPrint('Using API endpoint: $baseUrl/doctors/specialty/$specialty');
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/doctors/specialty/$specialty'),
-        headers: headers,
-      );
+      // Make sure we're using the correct endpoint
+      final url = Uri.parse('$baseUrl/doctors/specialty/$specialty');
+      debugPrint('Requesting URL: $url');
       
-      // Debug log response
-      debugPrint('Response status code: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
+      final response = await http.get(url, headers: headers);
+      
+      // Log the response for debugging
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response body preview: ${response.body.substring(0, min(200, response.body.length))}...');
       
       if (response.statusCode == 200) {
         final List<dynamic> doctorsJson = json.decode(response.body);
+        debugPrint('Parsed ${doctorsJson.length} doctors');
         
-        // Debug log the parsed data
-        debugPrint('Successfully parsed ${doctorsJson.length} doctors');
-        if (doctorsJson.isNotEmpty) {
-          debugPrint('First doctor data: ${json.encode(doctorsJson[0])}');
-        }
-        
-        // Map JSON to Doctor objects with null check
+        // Map JSON to Doctor objects
         final List<Doctor> doctors = doctorsJson.map((json) {
           try {
             return Doctor.fromJson(json);
           } catch (e) {
             debugPrint('Error parsing doctor: $e');
-            // Return a default doctor if parsing fails
             return Doctor(
               id: 0, 
               userId: 0, 
@@ -61,21 +51,18 @@ class DoctorService {
           }
         }).toList();
         
-        // Return empty list if all parsing fails
-        if (doctors.every((d) => d.id == 0)) {
-          debugPrint('All doctor parsing failed, returning empty list');
-          return [];
-        }
+        // Filter out any invalid doctors that might have been created as fallbacks
+        final validDoctors = doctors.where((d) => d.id != 0).toList();
+        debugPrint('Returning ${validDoctors.length} valid doctors');
         
-        return doctors;
+        return validDoctors;
       } else {
-        debugPrint('Failed to load doctors in $specialty: ${response.body}');
-        // Return empty list instead of throwing exception
+        debugPrint('Failed to load doctors: ${response.statusCode}');
+        debugPrint('Error response: ${response.body}');
         return [];
       }
     } catch (e) {
       debugPrint('Error getting doctors by specialty: $e');
-      // Return empty list instead of throwing exception
       return [];
     }
   }
@@ -111,6 +98,9 @@ class DoctorService {
       return [];
     }
   }
+
+  // Helper method to limit string length for logging
+  static int min(int a, int b) => a < b ? a : b;
 
   // Get available doctors
   static Future<List<Doctor>> getAvailableDoctors() async {

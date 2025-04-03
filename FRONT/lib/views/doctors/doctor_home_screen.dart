@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:my_app/basrel.dart' show baseUrl;
 import 'package:my_app/views/appointments/UpcomingAppointmentsScreen.dart';
+import 'package:my_app/views/doctors/doctor_chat_list_screen.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
+import 'package:my_app/views/chat/chat_list_screen.dart'; // Add this import
 import '../../basrel.dart';
 import '../../core/models/consultation.dart';
 import '../../services/auth_service_api.dart';
@@ -365,11 +367,11 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                   Icon(icon, color: color, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    title,
+                    title, 
                     style: TextStyle(
-                      fontSize: 14,
                       color: Colors.grey[600],
-                    ),
+                      fontSize: 14
+                    )
                   ),
                 ],
               ),
@@ -396,14 +398,14 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
       mainAxisSpacing: 16,
       crossAxisSpacing: 16,
       children: [
-        _buildFeatureCard(
-          title: 'Consultation Requests',
-          icon: Icons.medical_services,
-          color: Colors.orange,
+              _buildFeatureCard(
+          title: 'Chat Consultations',
+          icon: Icons.chat,
+          color: Colors.green,
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const DoctorConsultationScreen()),
+              MaterialPageRoute(builder: (context) => const DoctorChatListScreen()),
             );
           },
         ),
@@ -412,10 +414,10 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
           icon: Icons.chat,
           color: Colors.green,
           onTap: () {
-           Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const  UpcomingAppointmentsScreen()),
-);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ChatListScreen()),
+            );
           },
         ),
         _buildFeatureCard(

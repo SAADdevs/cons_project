@@ -1,3 +1,4 @@
+// lib/core/models/doctor_model.dart
 import 'package:flutter/foundation.dart';
 
 class Doctor {
@@ -8,6 +9,10 @@ class Doctor {
   final bool isVerified;
   final bool isAvailable;
   final String? hospital;
+  final String? imageUrl;
+  final double? rating;
+  final String? experience;
+  final int? patientsCount;
 
   Doctor({
     required this.id,
@@ -17,23 +22,28 @@ class Doctor {
     required this.isVerified,
     required this.isAvailable,
     this.hospital,
+    this.imageUrl,
+    this.rating,
+    this.experience,
+    this.patientsCount,
   });
 
   factory Doctor.fromJson(Map<String, dynamic> json) {
     try {
-      // Debug log to understand what we're getting
-      debugPrint('Processing doctor JSON: ${json.toString().substring(0, min(200, json.toString().length))}...');
-      
       return Doctor(
-        id: json['id'] ?? 0,
-        userId: json['user_id'] ?? 0,
-        // Get name from full_name field (this is what the backend sends)
-        name: json['full_name'] ?? 'Unknown Doctor',
-        // Backend uses "specialties" not "specialty"
-        specialty: json['specialties'] ?? 'General',
+        id: json['id'] is String ? int.parse(json['id']) : (json['id'] ?? 0),
+        userId: json['user_id'] is String ? int.parse(json['user_id']) : (json['user_id'] ?? 0),
+        // Get name from full_name field or related fields
+        name: json['full_name'] ?? json['doctor_name'] ?? 'Unknown Doctor',
+        // Get specialty
+        specialty: json['specialties'] ?? json['specialty'] ?? 'General',
         isVerified: json['is_verified'] ?? false,
         isAvailable: json['is_available'] ?? false,
         hospital: json['hospital'],
+        imageUrl: json['image_url'],
+        rating: json['rating'] != null ? (json['rating'] is double ? json['rating'] : double.tryParse(json['rating'].toString())) : null,
+        experience: json['experience'],
+        patientsCount: json['patients_count'] is String ? int.tryParse(json['patients_count']) : json['patients_count'],
       );
     } catch (e) {
       debugPrint('Error parsing doctor: $e');
@@ -53,13 +63,14 @@ class Doctor {
       'id': id,
       'user_id': userId,
       'full_name': name,
-      'specialties': specialty,
+      'specialty': specialty,
       'is_verified': isVerified,
       'is_available': isAvailable,
       'hospital': hospital,
+      'image_url': imageUrl,
+      'rating': rating,
+      'experience': experience,
+      'patients_count': patientsCount,
     };
   }
-  
-  // Helper method to limit string length for logging
-  static int min(int a, int b) => a < b ? a : b;
 }

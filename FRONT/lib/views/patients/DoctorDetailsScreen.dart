@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/core/models/doctor_model.dart' as model;
 import 'package:my_app/services/DoctorService.dart';
+import 'package:my_app/services/auth_service_api.dart';
+import 'package:my_app/services/consultation_service.dart';
 import '../../core/utils/constants.dart';
-<<<<<<< HEAD
-import '../../core/models/doctor_model.dart' as model;
-=======
->>>>>>> 0f49f28f3662df96fa31f9030c2bdd0187900a80
-import '../../services/consultation_service.dart';
-import '../../services/auth_service_api.dart';
 
 enum ConsultationType {
   video,

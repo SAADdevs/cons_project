@@ -1,4 +1,3 @@
-// lib/core/models/chat_message_model.dart
 class ChatMessage {
   final int id;
   final int consultationId;
@@ -9,6 +8,7 @@ class ChatMessage {
   final String messageType;
   final bool isRead;
   final DateTime createdAt;
+  final bool isFromDoctor;
   final String? senderName;
   final String? receiverName;
 
@@ -19,26 +19,34 @@ class ChatMessage {
     required this.receiverId,
     required this.messageText,
     this.mediaUrl,
-    required this.messageType,
-    required this.isRead,
+    this.messageType = 'text',
+    this.isRead = false,
     required this.createdAt,
+  required this.isFromDoctor,  // ✅ This should exist
     this.senderName,
     this.receiverName,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      id: json['id'],
-      consultationId: json['consultation_id'],
-      senderId: json['sender_id'],
-      receiverId: json['receiver_id'],
-      messageText: json['message_text'],
+      id: json['id'] ?? 0,
+      consultationId: json['consultation_id'] ?? 0,
+      senderId: json['sender_id'] ?? 
+          (json['is_from_doctor'] == true ? 
+            json['doctor_id'] ?? 0 : 
+            json['patient_id'] ?? 0),
+      receiverId: json['receiver_id'] ?? 
+          (json['is_from_doctor'] == true ? 
+            json['patient_id'] ?? 0 : 
+            json['doctor_id'] ?? 0),
+      messageText: json['message_text'] ?? '',
       mediaUrl: json['media_url'],
       messageType: json['message_type'] ?? 'text',
       isRead: json['is_read'] ?? false,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at']) 
           : DateTime.now(),
+      isFromDoctor: json['is_from_doctor'] ?? false,
       senderName: json['sender_name'],
       receiverName: json['receiver_name'],
     );
@@ -55,6 +63,7 @@ class ChatMessage {
       'message_type': messageType,
       'is_read': isRead,
       'created_at': createdAt.toIso8601String(),
+      'is_from_doctor': isFromDoctor,
       'sender_name': senderName,
       'receiver_name': receiverName,
     };
@@ -66,9 +75,11 @@ class ChatMessage {
     required int receiverId,
     required int consultationId,
     required String messageText,
+    required bool isFromDoctor,
     String? mediaUrl,
     String messageType = 'text',
     String? senderName,
+    String? receiverName,
   }) {
     return ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
@@ -80,7 +91,9 @@ class ChatMessage {
       messageType: messageType,
       isRead: false,
       createdAt: DateTime.now(),
+      isFromDoctor: isFromDoctor,
       senderName: senderName,
+      receiverName: receiverName,
     );
   }
 }

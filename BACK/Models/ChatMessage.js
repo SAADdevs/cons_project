@@ -21,41 +21,36 @@ class ChatMessage {
     }
 
     // Get all messages for a consultation
-    static async getConsultationMessages(consultation_id) {
-        try {
-            const result = await pool.query(
-                `SELECT 
-                    cm.*,
-                    p.full_name as patient_name,
-                    d.full_name as doctor_name
-                 FROM 
-                    chat_messages cm
-                 JOIN
-                    (SELECT u.id, u.full_name FROM users u JOIN patients p ON u.id = p.user_id) p ON cm.patient_id = p.id
-                 JOIN
-                    (SELECT u.id, u.full_name FROM users u JOIN doctors d ON u.id = d.user_id) d ON cm.doctor_id = d.id
-                 WHERE 
-                    cm.consultation_id = $1
-                 ORDER BY 
-                    cm.created_at ASC`,
-                [consultation_id]
-            );
-            
-            // Transform to the format frontend expects
-            const messages = result.rows.map(msg => ({
-                ...msg,
-                sender_id: msg.is_from_doctor ? msg.doctor_id : msg.patient_id,
-                receiver_id: msg.is_from_doctor ? msg.patient_id : msg.doctor_id,
-                sender_name: msg.is_from_doctor ? msg.doctor_name : msg.patient_name,
-                receiver_name: msg.is_from_doctor ? msg.patient_name : msg.doctor_name
-            }));
-            
-            return messages;
-        } catch (error) {
-            console.error('Error getting consultation messages:', error);
-            throw error;
-        }
-    }
+    static async getConsultationMessages(consultationId) {
+        return await db.query(`
+          SELECT 
+            m.id,
+            m.consultation_id,
+            m.message_text,
+            m.media_url,
+            m.message_type,
+            m.is_read,
+            m.created_at,
+            m.is_from_doctor,
+            CASE
+              WHEN m.is_from_doctor THEN d.email
+              ELSE p.email
+            END as sender_name,
+            CASE
+              WHEN m.is_from_doctor THEN 'Doctor'
+              ELSE 'Patient'
+            END as sender_role
+          FROM 
+            messages m
+          LEFT JOIN consultations c ON m.consultation_id = c.id
+          LEFT JOIN users p ON c.patient_id = p.id
+          LEFT JOIN users d ON c.doctor_id = d.id
+          WHERE 
+            m.consultation_id = $1
+          ORDER BY 
+            m.created_at ASC
+        `, [consultationId]);
+      }
 
     // Get unread message count for a user
    // Replace the existing getUnreadCount method in ChatMessage.js with this updated version
@@ -830,6 +825,34 @@ static async archiveConsultationChat(consultation_id, archive_reason = 'manual')
         throw error;
     }
 }
+
+static async getConsultationMessages(consultationId) {
+    return await pool.query(`
+      SELECT 
+        cm.*,
+        pu.full_name as patient_name,
+        du.full_name as doctor_name,
+        pu.email as patient_email,
+        du.email as doctor_email,
+        CASE 
+          WHEN cm.is_from_doctor THEN du.id 
+          ELSE pu.id 
+        END as sender_id,
+        CASE 
+          WHEN cm.is_from_doctor THEN 'Doctor'
+          ELSE 'Patient'
+        END as sender_role
+      FROM 
+        chat_messages cm
+      JOIN consultations c ON cm.consultation_id = c.id
+      JOIN users pu ON c.patient_id = pu.id
+      JOIN users du ON c.doctor_id = du.id
+      WHERE 
+        cm.consultation_id = $1
+      ORDER BY 
+        cm.created_at ASC
+    `, [consultationId]);
+  }
 }
 
 module.exports = ChatMessage;

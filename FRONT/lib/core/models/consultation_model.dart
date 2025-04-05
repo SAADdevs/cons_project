@@ -8,6 +8,11 @@ class ConsultationModel {
   final bool isEmergency;
   final String status;
   final DateTime? consultationDate;
+  final DateTime? scheduledTime;
+  final bool isScheduled;     // Professional ID
+  final int doctorUserId;   // Add this
+  final int patientUserId;
+  
 
   ConsultationModel({
     required this.id,
@@ -18,6 +23,10 @@ class ConsultationModel {
     required this.isEmergency,
     required this.status,
     this.consultationDate,
+    this.scheduledTime,
+    this.isScheduled = false,
+    required this.doctorUserId,
+    required this.patientUserId,
   });
 
   factory ConsultationModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +41,8 @@ class ConsultationModel {
       consultationDate: json['consultation_date'] != null
           ? DateTime.parse(json['consultation_date'])
           : null,
+               doctorUserId: json['doctor_user_id'],  // May need API update
+      patientUserId: json['patient_user_id'],
     );
   }
 

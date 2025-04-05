@@ -9,11 +9,10 @@ import 'package:my_app/services/chat_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:intl/intl.dart';
 
-
 class ChatScreen extends StatefulWidget {
   final Consultation consultation;
   final String receiverName;
-  final bool isDoctor; // To determine UI layout
+  final bool isDoctor;
 
   const ChatScreen({
     Key? key,
@@ -35,6 +34,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isSending = false;
   bool _isTyping = false;
   bool _otherUserTyping = false;
+
+  
   
   Timer? _typingTimer;
   int? _currentUserId;
@@ -48,49 +49,50 @@ class _ChatScreenState extends State<ChatScreen> {
     _initialize();
   }
 
-  Future<void> _initialize() async {
-    try {
-      // Get current user ID and token
-      final userId = await ApiService.getCurrentUserId();
-      final userName = await ApiService.getUserFullName();
-      final token = await ApiService.getAuthToken();
-      
-      if (userId == null || token == null) {
-        throw Exception('User information not available');
-      }
+ Future<void> _initialize() async {
+  try {
+    final userId = await ApiService.getCurrentUserId();
+    final userName = await ApiService.getUserFullName();
+    final token = await ApiService.getAuthToken();
+    
+    debugPrint('User ID: $userId');
+    debugPrint('User Name: $userName');
+    debugPrint('Is Doctor: ${widget.isDoctor}');
+    
+    if (userId == null || token == null) {
+      debugPrint('User information is missing');
+      throw Exception('User information not available');
+    }
 
-      setState(() {
-        _currentUserId = userId;
-        _currentUserName = userName;
-        
-        // Determine receiver ID based on whether current user is doctor or patient
-        if (widget.isDoctor) {
-          _receiverId = widget.consultation.patientId;
-        } else {
-          _receiverId = widget.consultation.doctorId;
-        }
-      });
+    // Get the receiver's USER ID (not professional ID)
+    final receiverUserId = widget.isDoctor 
+        ? widget.consultation.patientUserId 
+        : widget.consultation.doctorUserId;
 
-      // Initialize socket connection
-      _initSocket(token);
-      
-      // Load message history
-      await _loadMessages();
-      
-      // Mark messages as read when opening the chat
-      if (_currentUserId != null) {
-        await ChatService.markMessagesAsRead(_currentUserId!, widget.consultation.id);
-      }
-    } catch (e) {
-      debugPrint('Error initializing chat: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading chat: $e')),
-        );
-      }
+    setState(() {
+      _currentUserId = userId;
+      _currentUserName = userName;
+      _receiverId = receiverUserId; // Using user ID now
+    });
+
+    debugPrint('Current User ID: $_currentUserId');
+    debugPrint('Receiver USER ID: $_receiverId');
+
+    _initSocket(token);
+    await _loadMessages();
+    
+    if (_currentUserId != null) {
+      await ChatService.markMessagesAsRead(_currentUserId!, widget.consultation.id);
+    }
+  } catch (e) {
+    debugPrint('Detailed error initializing chat: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Detailed error loading chat: $e')),
+      );
     }
   }
-
+}
   void _initSocket(String token) {
     try {
       _socket = io.io(
@@ -105,54 +107,40 @@ class _ChatScreenState extends State<ChatScreen> {
 
       _socket!.onConnect((_) {
         debugPrint('Connected to Socket.IO server');
-        
-        // Join the consultation room
         _socket!.emit('join_consultation', widget.consultation.id);
       });
 
-      _socket!.onDisconnect((_) {
-        debugPrint('Disconnected from Socket.IO server');
-      });
-
-      _socket!.on('error', (data) {
-        debugPrint('Socket error: $data');
-      });
-
-      // Handle incoming messages
       _socket!.on('new_message', (data) {
-        debugPrint('New message received: $data');
-        final message = ChatMessage.fromJson(data);
-        
-        setState(() {
-          _messages.add(message);
-          _otherUserTyping = false;
-        });
-        
-        // Scroll to bottom on new message
-        _scrollToBottom();
-        
-        // Mark as read if from the other user
-        if (message.senderId != _currentUserId && _currentUserId != null) {
-          ChatService.markMessagesAsRead(_currentUserId!, widget.consultation.id);
+        try {
+          final message = ChatMessage.fromJson(data);
+          if (mounted) {
+            setState(() {
+              _messages.add(message);
+              _otherUserTyping = false;
+            });
+          }
+          _scrollToBottom();
+          
+          if (message.senderId != _currentUserId && _currentUserId != null) {
+            ChatService.markMessagesAsRead(_currentUserId!, widget.consultation.id);
+          }
+        } catch (e) {
+          debugPrint('Error processing new message: $e');
         }
       });
 
-      // Handle typing indicators
       _socket!.on('user_typing', (data) {
-        // Check if typing indicator is from the other user
         if (data['user_id'] != _currentUserId && data['consultation_id'] == widget.consultation.id) {
           setState(() => _otherUserTyping = true);
         }
       });
 
       _socket!.on('user_stop_typing', (data) {
-        // Check if typing indicator is from the other user
         if (data['user_id'] != _currentUserId && data['consultation_id'] == widget.consultation.id) {
           setState(() => _otherUserTyping = false);
         }
       });
 
-      // Connect to the socket server
       _socket!.connect();
     } catch (e) {
       debugPrint('Error initializing socket: $e');
@@ -165,102 +153,114 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final messages = await ChatService.getConsultationChat(
-        widget.consultation.id, 
+      final response = await ChatService.getConsultationMessages(
+        widget.consultation.id,
         _currentUserId!,
       );
+
+      List<ChatMessage> loadedMessages = [];
       
+      if (response is List) {
+        loadedMessages = response.map((msg) => ChatMessage.fromJson(msg)).toList();
+      } else if (response is Map && response['data'] is List) {
+        loadedMessages = (response['data'] as List)
+            .map((msg) => ChatMessage.fromJson(msg))
+            .toList();
+      } else {
+        throw FormatException('Unexpected response format');
+      }
+
       setState(() {
         _messages.clear();
-        _messages.addAll(messages);
+        _messages.addAll(loadedMessages);
         _isLoading = false;
       });
       
-      // Scroll to bottom after messages load
       _scrollToBottom();
     } catch (e) {
       debugPrint('Error loading messages: $e');
       setState(() => _isLoading = false);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading messages: $e')),
-        );
-      }
+      _showErrorSnackBar('Failed to load messages');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _loadMessages,
+          ),
+        ),
+      );
     }
   }
 
   void _sendMessage() async {
-    final text = _messageController.text.trim();
-    if (text.isEmpty || _currentUserId == null || _receiverId == null || _isSending) return;
+  final text = _messageController.text.trim();
+  if (text.isEmpty) return;
+
+  setState(() => _isSending = true);
+  _messageController.clear();
+
+  try {
+    // Use the consultation's IDs directly
+    final senderProfessionalId = widget.isDoctor 
+        ? widget.consultation.doctorId    // If user is doctor, use consultation's doctor ID
+        : widget.consultation.patientId;  // If user is patient, use consultation's patient ID
     
-    setState(() => _isSending = true);
+    final receiverProfessionalId = widget.isDoctor
+        ? widget.consultation.patientId   // If user is doctor, receiver is patient
+        : widget.consultation.doctorId;   // If user is patient, receiver is doctor
     
-    // Clear text field immediately for better UX
-    _messageController.clear();
-    
-    // Cancel typing indicator
-    _typingTimer?.cancel();
-    if (_socket != null) {
-      _socket!.emit('stop_typing', {'consultation_id': widget.consultation.id});
+    debugPrint('Sender Professional ID: $senderProfessionalId');
+    debugPrint('Receiver Professional ID: $receiverProfessionalId');
+
+    // Create local message
+    final localMessage = ChatMessage.createLocalMessage(
+      senderId: senderProfessionalId,
+      receiverId: receiverProfessionalId,
+      consultationId: widget.consultation.id,
+      messageText: text,
+      senderName: _currentUserName,
+      isFromDoctor: widget.isDoctor,
+    );
+
+    setState(() => _messages.add(localMessage));
+    _scrollToBottom();
+
+    await ChatService.sendMessage(
+      senderId: senderProfessionalId,
+      receiverId: receiverProfessionalId,
+      consultationId: widget.consultation.id,
+      messageText: text,
+      isFromDoctor: widget.isDoctor,
+    );
+  } catch (e) {
+    debugPrint('Error sending message: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to send: ${e.toString()}')),
+    );
+    // Remove failed message
+    if (_messages.isNotEmpty) {
+      setState(() => _messages.removeLast());
     }
-    setState(() => _isTyping = false);
-    
-    try {
-      // Create local message for immediate UI feedback
-      final localMessage = ChatMessage.createLocalMessage(
-        senderId: _currentUserId!,
-        receiverId: _receiverId!,
-        consultationId: widget.consultation.id,
-        messageText: text,
-        senderName: _currentUserName,
-      );
-      
-      // Add to local messages
-      setState(() => _messages.add(localMessage));
-      
-      // Scroll to bottom
-      _scrollToBottom();
-      
-      // Send via socket if available
-      if (_socket != null && _socket!.connected) {
-        _socket!.emit('send_message', {
-          'consultation_id': widget.consultation.id,
-          'receiver_id': _receiverId,
-          'message_text': text,
-          'message_type': 'text',
-        });
-      }
-      
-      // Also send via HTTP API as fallback
-      await ChatService.sendMessage(
-        senderId: _currentUserId!,
-        receiverId: _receiverId!,
-        consultationId: widget.consultation.id,
-        messageText: text,
-      );
-    } catch (e) {
-      debugPrint('Error sending message: $e');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending message: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSending = false);
-      }
-    }
+  } finally {
+    setState(() => _isSending = false);
   }
+}
 
   void _handleTyping() {
     if (!_isTyping && _messageController.text.isNotEmpty && _socket != null) {
       setState(() => _isTyping = true);
-      _socket!.emit('typing', {'consultation_id': widget.consultation.id});
+      _socket!.emit('typing', {
+        'consultation_id': widget.consultation.id,
+        'user_id': _currentUserId,
+      });
     }
     
-    // Reset typing timer
     _typingTimer?.cancel();
     _typingTimer = Timer(const Duration(seconds: 2), () {
       if (_isTyping && _socket != null) {
@@ -271,7 +271,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _scrollToBottom() {
-    // Delayed to ensure the list is built
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -289,7 +288,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollController.dispose();
     _typingTimer?.cancel();
     
-    // Leave consultation room and disconnect socket
     if (_socket != null) {
       _socket!.emit('leave_consultation', widget.consultation.id);
       _socket!.disconnect();
@@ -301,89 +299,41 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.receiverName),
-            const SizedBox(height: 2),
-            Text(
-              widget.isDoctor ? 'Patient' : widget.consultation.doctorSpecialty ?? 'Doctor',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-            ),
-          ],
-        ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        actions: [
-          // Add voice/video call buttons based on consultation type
-          if (widget.consultation.type == 'video' || widget.consultation.type == 'voice')
-            IconButton(
-              icon: Icon(widget.consultation.type == 'video' ? Icons.videocam : Icons.phone),
-              onPressed: () {
-                // Handle initiating call
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${widget.consultation.type} calling feature coming soon')),
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(widget.receiverName),
+    ),
+    body: Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(12),
+            itemCount: _messages.length,
+            itemBuilder: (context, index) {
+              final message = _messages[index];
+              final isCurrentUser = message.senderId == _currentUserId;
+              
+              // Add date headers if needed
+              if (index == 0 || 
+                  !_isSameDay(message.createdAt, _messages[index-1].createdAt)) {
+                return Column(
+                  children: [
+                    _buildDateDivider(message.createdAt),
+                    _buildMessageBubble(message, isCurrentUser),
+                  ],
                 );
-              },
-              tooltip: widget.consultation.type == 'video' ? 'Video Call' : 'Voice Call',
-            ),
-        ],
-      ),
-      body: _currentUserId == null
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Typing indicator
-                if (_otherUserTyping)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      children: [
-                        const SizedBox(
-                          width: 40,
-                          child: Center(
-                            child: SizedBox(
-                              width: 30,
-                              height: 30,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${widget.receiverName} is typing...',
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                // Chat messages
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _messages.isEmpty
-                          ? _buildEmptyState()
-                          : _buildChatMessages(),
-                ),
-                
-                // Message input
-                _buildMessageInputField(),
-              ],
-            ),
-    );
-  }
-
+              }
+              
+              return _buildMessageBubble(message, isCurrentUser);
+            },
+          ),
+        ),
+        _buildMessageInputField(),
+      ],
+    ),
+  );
+}
   Widget _buildEmptyState() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -424,26 +374,80 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildChatMessages() {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: _messages.length,
-      itemBuilder: (context, index) {
-        final message = _messages[index];
-        final isMe = message.senderId == _currentUserId;
-        final showDate = index == 0 ||
-            !_isSameDay(message.createdAt, _messages[index - 1].createdAt);
-
-        return Column(
-          children: [
-            if (showDate) _buildDateDivider(message.createdAt),
-            _buildMessageBubble(message, isMe),
-          ],
-        );
-      },
-    );
-  }
+ Widget _buildMessageBubble(ChatMessage message, bool isCurrentUser) {
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: isCurrentUser 
+          ? MainAxisAlignment.end 
+          : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        const SizedBox(width: 8),
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: isCurrentUser 
+                  ? AppColors.primary 
+                  : Colors.grey[200],
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: isCurrentUser 
+                    ? const Radius.circular(16) 
+                    : const Radius.circular(4),
+                bottomRight: isCurrentUser 
+                    ? const Radius.circular(4) 
+                    : const Radius.circular(16),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.messageText,
+                  style: TextStyle(
+                    color: isCurrentUser ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      DateFormat('h:mm a').format(message.createdAt),
+                      style: TextStyle(
+                        color: isCurrentUser 
+                            ? Colors.white70 
+                            : Colors.grey[600],
+                        fontSize: 10,
+                      ),
+                    ),
+                    if (isCurrentUser) const SizedBox(width: 4),
+                    if (isCurrentUser)
+                      Icon(
+                        message.isRead 
+                            ? Icons.done_all 
+                            : Icons.done,
+                        size: 12,
+                        color: message.isRead 
+                            ? Colors.white70 
+                            : Colors.white54,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildDateDivider(DateTime date) {
     return Container(
@@ -467,74 +471,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, bool isMe) {
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : Colors.grey[200],
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Message text
-            Text(
-              message.messageText,
-              style: TextStyle(
-                color: isMe ? Colors.white : Colors.black87,
-                fontSize: 16,
-              ),
-            ),
-            
-            // Message time
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatTime(message.createdAt),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isMe ? Colors.white70 : Colors.grey,
-                    ),
-                  ),
-                  if (isMe) const SizedBox(width: 4),
-                  if (isMe)
-                    Icon(
-                      message.isRead ? Icons.done_all : Icons.done,
-                      size: 12,
-                      color: message.isRead ? Colors.white70 : Colors.white38,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildMessageInputField() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -550,7 +486,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
-          // Message text field
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -572,8 +507,6 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          
-          // Send button
           const SizedBox(width: 8),
           MaterialButton(
             onPressed: _messageController.text.trim().isEmpty || _isSending ? null : _sendMessage,
@@ -600,7 +533,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // Helper methods
   bool _isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
            date1.month == date2.month &&
@@ -615,17 +547,13 @@ class _ChatScreenState extends State<ChatScreen> {
     } else if (_isSameDay(date, now.subtract(const Duration(days: 1)))) {
       return 'Yesterday';
     } else if (now.difference(date).inDays < 7) {
-      // Return day of week for dates within the last week
-      final format = DateFormat('EEEE'); // Full day name (e.g., "Monday")
-      return format.format(date);
+      return DateFormat('EEEE').format(date);
     } else {
-      // Return the full date for older messages
-      final format = DateFormat('MMM d, yyyy'); // e.g., "Jan 1, 2025"
-      return format.format(date);
+      return DateFormat('MMM d, yyyy').format(date);
     }
   }
 
   String _formatTime(DateTime date) {
-    return DateFormat('h:mm a').format(date); // e.g., "2:30 PM"
+    return DateFormat('h:mm a').format(date);
   }
 }

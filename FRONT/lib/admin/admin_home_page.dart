@@ -36,7 +36,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     
     // Fetch all dashboard statistics in one call
     final response = await http.get(
-      Uri.parse('$baseUrl/dashboard'),
+      Uri.parse('$baseUrl/statistics/dashboard'),
       headers: {
         "Content-Type": "application/json",
         // "Authorization": "Bearer $token"

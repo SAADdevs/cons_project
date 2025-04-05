@@ -7,115 +7,130 @@ const pool = require('../config/db'); // Add this line to import the database po
 class ChatController {
     // Send a new message
     // Replace the sendMessage method in ChatController.js
-static async sendMessage(req, res) {
-    try {
-        const { 
-            consultation_id, 
-            sender_id, 
-            receiver_id,
-            message_text, 
-            message_type = 'text', 
-            media_url = null
-        } = req.body;
-        
-        // Debug log
-        console.log('Send message request:', req.body);
-        
-        if (!consultation_id || !message_text) {
-            return res.status(400).json({ message: "Consultation ID and message text are required" });
-        }
-        
-        // Get consultation details to get patient_id and doctor_id
-        const consultation = await Consultation.getById(consultation_id);
-        if (!consultation) {
-            return res.status(404).json({ message: "Consultation not found" });
-        }
-        
-        // Get sender's role to determine if the message is from doctor or patient
-        const sender = await User.getUserById(sender_id);
-        if (!sender) {
-            return res.status(404).json({ message: "Sender not found" });
-        }
-        
-        const isFromDoctor = sender.role === 'doctor';
-        
-        // Use the consultation's patient_id and doctor_id
-        const patient_id = consultation.patient_id;
-        const doctor_id = consultation.doctor_id;
-        
-        // Create the message
-        const newMessage = await ChatMessage.createMessage(
-            patient_id,
-            doctor_id,
-            consultation_id,
-            message_text,
-            media_url,
-            message_type,
-            isFromDoctor
-        );
-        
-        // Add sender and receiver information for frontend
-        const responseMessage = {
-            ...newMessage,
-            sender_id: isFromDoctor ? doctor_id : patient_id,
-            receiver_id: isFromDoctor ? patient_id : doctor_id,
-            is_from_doctor: isFromDoctor
-        };
-
-        // Emit through socket if available
-        if (req.io) {
-            req.io.to(`consultation_${consultation_id}`).emit('new_message', responseMessage);
-        }
-
-        res.status(201).json({
-            message: "Message sent successfully",
-            chat_message: responseMessage
-        });
-    } catch (error) {
-        console.error('Error sending message:', error);
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-}
-
-    // Get consultation chat history
-    static async getConsultationChat(req, res) {
+    static async sendMessage(req, res) {
         try {
-            const { consultation_id } = req.params;
-            const { user_id } = req.query; // User requesting the messages
-            
-            // Debug log
-            console.log(`Get consultation chat for consultation ID: ${consultation_id}, User ID: ${user_id}`);
-
-            if (!consultation_id) {
-                return res.status(400).json({ message: "Consultation ID is required" });
-            }
-
-            // Validate the consultation exists
-            const consultation = await Consultation.getById(consultation_id);
-            if (!consultation) {
+            const { 
+                consultation_id, 
+                sender_id, 
+                receiver_id,
+                message_text, 
+                is_from_doctor 
+            } = req.body;
+    
+            // Verify the consultation exists
+            const consultationQuery = await pool.query(
+                'SELECT patient_id, doctor_id FROM consultations WHERE id = $1',
+                [consultation_id]
+            );
+    
+            if (consultationQuery.rows.length === 0) {
                 return res.status(404).json({ message: "Consultation not found" });
             }
-
-            // Get all messages for the consultation
-            const messages = await ChatMessage.getConsultationMessages(consultation_id);
-            
-            // If user_id is provided, mark messages as read
-            if (user_id) {
-                try {
-                    await ChatMessage.markAsRead(user_id, consultation_id);
-                } catch (markError) {
-                    console.error('Error marking messages as read:', markError);
-                    // Continue even if marking fails
-                }
+    
+            const { patient_id, doctor_id } = consultationQuery.rows[0];
+    
+            // Get sender role from the users table
+            const userQuery = await pool.query(
+                'SELECT role FROM users WHERE id = $1',
+                [sender_id]
+            );
+    
+            if (userQuery.rows.length === 0) {
+                return res.status(404).json({ message: "Sender not found" });
             }
-
-            res.status(200).json(messages);
+    
+            // Insert message using the patient_id and doctor_id from the consultation
+            const result = await pool.query(
+                `INSERT INTO chat_messages 
+                (consultation_id, patient_id, doctor_id, message_text, is_from_doctor, created_at)
+                VALUES ($1, $2, $3, $4, $5, NOW())
+                RETURNING *`,
+                [
+                    consultation_id, 
+                    patient_id, 
+                    doctor_id,
+                    message_text, 
+                    is_from_doctor // Use the provided flag
+                ]
+            );
+    
+            res.status(201).json({
+                success: true,
+                chat_message: result.rows[0]
+            });
         } catch (error) {
-            console.error('Error getting consultation chat:', error);
-            res.status(500).json({ message: "Server error", error: error.message });
+            console.error('Detailed error sending message:', error);
+            res.status(500).json({
+                success: false,
+                message: "Failed to send message",
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: error.detail || 'Unknown error'
+            });
         }
     }
-
+    // Get consultation chat history
+    // In your ChatController.js
+    static async getConsultationChat(req, res) {
+        try {
+          const { consultation_id } = req.params;
+          const { user_id } = req.query;
+      
+          console.log('Retrieving chat for consultation:', consultation_id);
+          console.log('User ID:', user_id);
+      
+          if (!consultation_id || isNaN(parseInt(consultation_id))) {
+            return res.status(400).json({ 
+              success: false,
+              message: "Valid consultation ID is required" 
+            });
+          }
+      
+          // Enhanced query to get sender names correctly
+          const result = await pool.query(`
+           SELECT 
+  cm.id,
+  cm.consultation_id,
+  cm.patient_id,
+  cm.doctor_id,
+  cm.message_text,
+  cm.media_url,
+  cm.message_type,
+  cm.is_read,
+  cm.created_at,
+  cm.is_from_doctor,
+  CASE 
+    WHEN cm.is_from_doctor THEN du.full_name
+    ELSE pu.full_name
+  END as sender_name,
+  CASE 
+    WHEN cm.is_from_doctor THEN pu.full_name
+    ELSE du.full_name
+  END as receiver_name
+FROM chat_messages cm
+LEFT JOIN doctors d ON cm.doctor_id = d.id
+LEFT JOIN users du ON d.user_id = du.id
+LEFT JOIN patients p ON cm.patient_id = p.id
+LEFT JOIN users pu ON p.user_id = pu.id
+WHERE cm.consultation_id = $1
+ORDER BY cm.created_at ASC
+          `, [consultation_id]);
+      
+          console.log(`Retrieved ${result.rows.length} messages`);
+      
+          return res.status(200).json({
+            success: true,
+            data: result.rows
+          });
+      
+        } catch (error) {
+          console.error('Error in getConsultationChat:', error);
+          return res.status(500).json({
+            success: false,
+            message: "Failed to load messages",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+          });
+        }
+      }
     // Get unread message count for a user and specific consultation
     static async getUnreadCountForConsultation(req, res) {
         try {

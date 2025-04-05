@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import 'package:my_app/basrel.dart';
 import 'package:my_app/services/auth_service_api.dart';
 
@@ -18,7 +17,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
   String _searchQuery = '';
   String _errorMessage = '';
   
-  // Map to store user names - will be populated dynamically
   Map<int, String> _userNames = {};
 
   @override
@@ -27,7 +25,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
     _loadData();
   }
   
-  // Load both doctors and users
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
@@ -35,16 +32,13 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
     });
 
     try {
-      // Get authentication token
       final token = await ApiService.getAuthToken();
       
-      // Prepare headers
       final headers = {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-      // First load doctors
       final doctorResponse = await http.get(
         Uri.parse('$baseUrl/doctors'),
         headers: headers,
@@ -61,14 +55,10 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       
       final doctorsData = json.decode(doctorResponse.body);
       
-      // Fetch user names
       final namesResponse = await http.get(
-        Uri.parse('$baseUrl/doctors/with-names'),
+        Uri.parse('$baseUrl/doctors/get/with-names'),
         headers: headers,
       );
-      
-      print('Names Response Status: ${namesResponse.statusCode}');
-      print('Names Response Body: ${namesResponse.body}');
       
       if (namesResponse.statusCode != 200) {
         setState(() {
@@ -82,7 +72,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       
       final namesData = json.decode(namesResponse.body);
       
-      // Create a map of user IDs to names
       final Map<int, String> userNameMap = {};
       for (var doctor in namesData) {
         if (doctor['user_id'] != null && doctor['full_name'] != null) {
@@ -90,17 +79,12 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
         }
       }
       
-      // Debug print
-      print('User Name Map: $userNameMap');
-      print('Doctors Data: $doctorsData');
-      
       setState(() {
         _userNames = userNameMap;
         _allDoctors = doctorsData;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = 'Error: $e';
@@ -113,7 +97,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // Filter doctors based on search query
   List<dynamic> get _filteredDoctors {
     if (_searchQuery.isEmpty) return _allDoctors;
     
@@ -133,12 +116,7 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       final endpoint = shouldVerify ? 'approve' : 'unverify';
       final url = Uri.parse('$baseUrl/doctors/$endpoint/$doctorId');
       
-      print('Making request to: $url');
-      
       final response = await http.put(url);
-      
-      print('Toggle verification response status: ${response.statusCode}');
-      print('Toggle verification response body: ${response.body}');
       
       if (response.statusCode == 200) {
         _showSnackBar('Doctor ${shouldVerify ? 'verified' : 'unverified'} successfully');
@@ -147,23 +125,155 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
         _showSnackBar('Operation failed: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error in _toggleVerification: $e');
       _showSnackBar('Error: $e');
     }
   }
 
-  // Get doctor's name from our map
   String _getDoctorName(int userId) {
-    // First try to get the full name from the map
     String? fullName = _userNames[userId];
-    
-    // If full name exists, return it
-    if (fullName != null && fullName.isNotEmpty) {
-      return fullName;
-    }
-    
-    // If no full name, return a generic name with the user ID
-    return 'Doctor $userId';
+    return fullName ?? 'Doctor $userId';
+  }
+
+  // Doctor Details Popup
+  void _showDoctorDetails(dynamic doctor) {
+    final doctorName = _getDoctorName(doctor['user_id']);
+    final isVerified = doctor['is_verified'] == true;
+    final license = doctor['IMPE'] ?? 'Not specified';
+    final specialty = doctor['specialties'] ?? 'General';
+    final hospital = doctor['hospital'] ?? 'Not specified';
+    final status = isVerified ? 'Verified' : 'Pending Verification';
+    final availability = doctor['is_available'] == true ? 'Available' : 'Not available';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(doctorName, style: const TextStyle(fontSize: 22)),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // License Information
+                _buildDetailSection(
+                  icon: Icons.medical_information,
+                  title: 'Medical License (IMPE)',
+                  content: license,
+                  isImportant: true,
+                ),
+                
+                // Specialty Information
+                _buildDetailSection(
+                  icon: Icons.medical_services,
+                  title: 'Specialty',
+                  content: specialty,
+                  isImportant: true,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Other Details
+                _buildDetailRow(Icons.person, 'Doctor ID:', doctor['id'].toString()),
+                _buildDetailRow(Icons.work, 'Hospital:', hospital),
+                _buildDetailRow(Icons.verified, 'Status:', status),
+                _buildDetailRow(Icons.event_available, 'Availability:', availability),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _toggleVerification(doctor['id'], !isVerified);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isVerified ? Colors.orange : Colors.green,
+              ),
+              child: Text(isVerified ? 'Unverify' : 'Verify'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailSection({
+    required IconData icon,
+    required String title,
+    required String content,
+    bool isImportant = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isImportant ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isImportant ? Colors.blue.withOpacity(0.3) : Colors.grey.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: isImportant ? Colors.blue : Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isImportant ? Colors.blue : Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: TextStyle(
+                    fontSize: isImportant ? 16 : 14,
+                    color: isImportant ? Colors.blue[800] : Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -183,15 +293,10 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
       ),
       body: Column(
         children: [
-          // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+              onChanged: (value) => setState(() => _searchQuery = value),
               decoration: InputDecoration(
                 hintText: 'Search doctors...',
                 prefixIcon: const Icon(Icons.search),
@@ -206,7 +311,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
             ),
           ),
           
-          // Error message (if any)
           if (_errorMessage.isNotEmpty && !_isLoading)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -225,43 +329,35 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
               ),
             ),
           
-          // Stats cards
           if (!_isLoading)
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Total',
-                      count: _allDoctors.length,
-                      icon: Icons.people,
-                      color: Colors.blue,
-                    ),
+                  _buildStatCard(
+                    title: 'Total',
+                    count: _allDoctors.length,
+                    icon: Icons.people,
+                    color: Colors.blue,
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Pending',
-                      count: _allDoctors.where((d) => d['is_verified'] != true).length,
-                      icon: Icons.pending_actions,
-                      color: Colors.orange,
-                    ),
+                  _buildStatCard(
+                    title: 'Pending',
+                    count: _allDoctors.where((d) => d['is_verified'] != true).length,
+                    icon: Icons.pending_actions,
+                    color: Colors.orange,
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      title: 'Verified',
-                      count: _allDoctors.where((d) => d['is_verified'] == true).length,
-                      icon: Icons.verified_user,
-                      color: Colors.green,
-                    ),
+                  _buildStatCard(
+                    title: 'Verified',
+                    count: _allDoctors.where((d) => d['is_verified'] == true).length,
+                    icon: Icons.verified_user,
+                    color: Colors.green,
                   ),
                 ],
               ),
             ),
           
-          // Main content
           Expanded(
             child: _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -306,12 +402,11 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
                           ),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(12),
-                            onTap: () {}, // For potential profile view
+                            onTap: () => _showDoctorDetails(doctor),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: Row(
                                 children: [
-                                  // Doctor avatar
                                   CircleAvatar(
                                     radius: 28,
                                     backgroundColor: isVerified 
@@ -327,8 +422,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
                                     ),
                                   ),
                                   const SizedBox(width: 16),
-                                  
-                                  // Doctor info
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,7 +442,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
                                           ),
                                         ),
                                         const SizedBox(height: 8),
-                                        // Status chip
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                           decoration: BoxDecoration(
@@ -370,8 +462,6 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
                                       ],
                                     ),
                                   ),
-                                  
-                                  // Verification action button
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: isVerified ? Colors.orange : Colors.green,
@@ -405,41 +495,43 @@ class _AdminDoctorsPageState extends State<AdminDoctorsPage> {
     required IconData icon,
     required Color color,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              count.toString(),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+     ),
+);
+}
 }

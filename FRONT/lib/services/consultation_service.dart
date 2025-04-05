@@ -183,7 +183,7 @@ static Future<List<Consultation>> fetchUpcomingConsultations(int doctorId) async
       try {
         print("Trying endpoint: $endpoint");
         final response = await http.get(
-          Uri.parse(endpoint),
+          Uri.parse('$baseUrl/upcoming-appointments/doctor/$doctorId'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token',

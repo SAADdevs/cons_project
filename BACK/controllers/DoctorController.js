@@ -184,6 +184,27 @@ class DoctorController {
             res.status(500).json({ message: "Server error", error: error.message });
         }
     }
+    static async getDoctorIdByUserId(req, res) {
+        try {
+          const { user_id } = req.params;
+          
+          // Query to get doctor ID by user ID
+          const query = `
+              SELECT id FROM doctors WHERE id = $1
+          `;
+          
+          const result = await pool.query(query, [user_id]);
+          
+          if (result.rows.length === 0) {
+            return res.status(404).json({ message: "doctor not found" });
+          }
+          
+          res.status(200).json(result.rows[0]);
+        } catch (error) {
+          console.error('Error getting doctor ID by user ID:', error);
+          res.status(500).json({ message: "Server error" });
+        }
+      }
 }
 
 module.exports = DoctorController;

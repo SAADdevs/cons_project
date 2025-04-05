@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_app/basrel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -423,4 +424,36 @@ class ApiService {
       throw Exception("Failed to change password: $e");
     }
   }
+
+  static Future<int?> getPatientId(int userId) async {
+     if (userId == null) {
+    debugPrint('Invalid user ID provided');
+    return null;
+  }
+  final response = await http.get(
+    Uri.parse('http://192.168.1.7:5000/api/patients/consultations/get-patient-id/$userId'),
+    headers: {'Authorization': 'Bearer ${await getAuthToken()}'},
+  );
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body)['id'];
+  }
+  return null;
+}
+
+static Future<int?> getDoctorId(int userId) async {
+  if (userId == null) {
+    debugPrint('Invalid user ID provided');
+    return null;
+  }
+  final response = await http.get(
+    Uri.parse('http://192.168.1.7:5000/api/doctors/get-doctor-id/$userId'),
+    headers: {'Authorization': 'Bearer ${await getAuthToken()}'},
+  );
+  if (response.statusCode == 200) {
+      print('doctor id getting-----------------------------'); 
+    return jsonDecode(response.body)['id'];
+  }
+  print('id of the facking doctor not getting-----------------------------'); 
+  return null;
+}
 }

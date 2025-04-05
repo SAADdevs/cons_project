@@ -16,7 +16,8 @@ router.put('/unverify/:id', DoctorController.unverifyDoctor);
 router.put('/update-availability', DoctorController.updateDoctorAvailability);
 
 // Route for getting doctors with names - crucial for the frontend
-router.get('/with-names', DoctorController.getDoctorsWithNames);
+router.get('/get/with-names', DoctorController.getDoctorsWithNames);
 router.get('/available/list', DoctorController.getAvailableDoctors);
+router.get('/get-doctor-id/:user_id', DoctorController.getDoctorIdByUserId);
 
 module.exports = router;

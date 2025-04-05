@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/admin/admin_home_page.dart';
+import 'package:my_app/views/auth/login_screen1.dart';
 import 'package:my_app/views/auth/register_screen.dart';
+import 'package:my_app/views/auth/welkoming.dart';
+import 'package:my_app/views/chat/chatlTestScreen.dart';
 import 'package:my_app/views/doctors/doctor_consultation_screen.dart';
 import 'package:my_app/views/doctors/doctor_home_screen.dart';
-import 'package:my_app/views/auth/login_screen.dart';
 import 'package:my_app/views/patients/PatientHomeScreen.dart';// Import the DoctorConsultationScreen
 
 void main() {
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: LoginScreen(), // Set the DoctorConsultationScreen as the home screen
+      home: ConsultationChatScreen(receiverName: 'Othmane', receiverTitle: 'Dr ', isDoctor: true, consultationTime: DateTime(2024, 4, 4, 21, 8),consultationDuration:  const Duration(minutes: 30),), // Set the DoctorConsultationScreen as the home screen
     );             
   }  
 } 

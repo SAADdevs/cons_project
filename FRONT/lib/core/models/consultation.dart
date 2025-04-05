@@ -142,4 +142,8 @@ class Consultation {
       type.hashCode ^ 
       status.hashCode;
   }
+
+  get patientUserId => null;
+
+  get doctorUserId => null;
 }

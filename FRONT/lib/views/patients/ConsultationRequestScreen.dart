@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:my_app/core/models/doctor_model.dart';
 import 'package:my_app/services/DoctorService.dart';
 import '../../core/utils/constants.dart';
 import '../../services/consultation_service.dart';

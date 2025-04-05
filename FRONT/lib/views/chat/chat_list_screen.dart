@@ -19,12 +19,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<Consultation> _consultations = [];
   int? _userId;
   String? _userRole;
-  Map<int, int> _unreadCounts = {}; // Mapping consultation ID to unread message count
+  Map<int, int> _unreadCounts = {};
+  final TextEditingController _searchController = TextEditingController();
+  List<Consultation> _filteredConsultations = [];
 
   @override
   void initState() {
     super.initState();
     _loadUserDataAndConsultations();
+    _searchController.addListener(_filterConsultations);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserDataAndConsultations() async {
@@ -62,21 +71,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
       List<Consultation> consultations = [];
       
       if (role == 'patient') {
-        // Get patient consultations
         consultations = await ConsultationService.getPatientConsultations(userId);
       } else if (role == 'doctor') {
-        // Get doctor's accepted consultations
         final upcomingConsultations = await ConsultationService.fetchUpcomingConsultations(userId);
         consultations.addAll(upcomingConsultations);
       }
       
-      // Filter consultations to show only accepted or completed ones (those that can have chats)
       final chatableConsultations = consultations.where((c) => 
         c.status == 'accepted' || c.status == 'completed').toList();
       
       if (mounted) {
         setState(() {
           _consultations = chatableConsultations;
+          _filteredConsultations = chatableConsultations;
           _isLoading = false;
         });
       }
@@ -84,7 +91,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
       debugPrint('Error loading consultations: $e');
       if (mounted) {
         setState(() {
-          _consultations = []; // Empty list
+          _consultations = [];
+          _filteredConsultations = [];
           _isLoading = false;
         });
       }
@@ -93,11 +101,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   Future<void> _loadUnreadCounts(int userId) async {
     try {
-      // Get total unread count for the user
       final totalUnreadCount = await ChatService.getUnreadCount(userId);
       
-      // For now, just assigning the total count to the first consultation
-      // In a real app, you'd have a more detailed API to get counts per consultation
       if (_consultations.isNotEmpty && mounted) {
         setState(() {
           _unreadCounts[_consultations[0].id] = totalUnreadCount;
@@ -108,13 +113,39 @@ class _ChatListScreenState extends State<ChatListScreen> {
     }
   }
 
+  void _filterConsultations() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredConsultations = _consultations.where((consultation) {
+        final otherPersonName = _userRole == 'doctor' 
+            ? consultation.patientName ?? 'Patient'
+            : consultation.doctorName ?? 'Doctor';
+        return otherPersonName.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
+
+  String _formatTimestamp(DateTime? timestamp) {
+    if (timestamp == null) return '';
+    
+    final now = DateTime.now();
+    if (now.difference(timestamp).inDays == 0) {
+      return DateFormat('h:mm a').format(timestamp);
+    } else if (now.difference(timestamp).inDays == 1) {
+      return 'Yesterday';
+    } else {
+      return DateFormat('MMM d').format(timestamp);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Chat Consultations'),
+        title: const Text('Chats'),
         backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -126,15 +157,215 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 _loadUserDataAndConsultations();
               }
             },
-            tooltip: 'Refresh',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _consultations.isEmpty
-              ? _buildEmptyState()
-              : _buildConsultationsList(),
+      body: Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search chats...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+          ),
+
+          // Chat list
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredConsultations.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: () async {
+                          if (_userId != null && _userRole != null) {
+                            await _loadConsultations(_userId!, _userRole!);
+                            await _loadUnreadCounts(_userId!);
+                          } else {
+                            await _loadUserDataAndConsultations();
+                          }
+                        },
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _filteredConsultations.length,
+                          itemBuilder: (context, index) {
+                            final consultation = _filteredConsultations[index];
+                            return _buildChatCard(consultation);
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatCard(Consultation consultation) {
+    final bool isDoctor = _userRole == 'doctor';
+    final String otherPersonName = isDoctor 
+        ? consultation.patientName ?? 'Patient'
+        : consultation.doctorName ?? 'Doctor';
+    final String subtitle = isDoctor
+        ? 'Patient'
+        : consultation.doctorSpecialty ?? 'Medical Professional';
+    final int unreadCount = _unreadCounts[consultation.id] ?? 0;
+    final IconData typeIcon = _getConsultationTypeIcon(consultation.type);
+    final Color typeColor = _getConsultationTypeColor(consultation.type);
+
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatScreen(
+                consultation: consultation,
+                receiverName: otherPersonName,
+                isDoctor: isDoctor,
+              ),
+            ),
+          ).then((_) {
+            if (_userId != null) {
+              _loadUnreadCounts(_userId!);
+            }
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Avatar with unread count
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: typeColor.withOpacity(0.1),
+                    child: Icon(
+                      typeIcon,
+                      color: typeColor,
+                    ),
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 16),
+
+              // Chat details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          otherPersonName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          _formatTimestamp(consultation.consultationDate),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: unreadCount > 0 
+                                ? Colors.green 
+                                : Colors.grey[500],
+                            fontWeight: unreadCount > 0 
+                                ? FontWeight.bold 
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: unreadCount > 0 
+                                  ? Colors.black87 
+                                  : Colors.grey[600],
+                              fontWeight: unreadCount > 0 
+                                  ? FontWeight.w500 
+                                  : FontWeight.normal,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8, 
+                            vertical: 4
+                          ),
+                          decoration: BoxDecoration(
+                            color: typeColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _getConsultationTypeText(consultation.type),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: typeColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -145,12 +376,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
         children: [
           Icon(
             Icons.chat_bubble_outline,
-            size: 80,
+            size: 64,
             color: Colors.grey[400],
           ),
           const SizedBox(height: 16),
           Text(
-            'No active consultations',
+            'No Chats Yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -163,214 +394,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             style: TextStyle(
               color: Colors.grey[500],
             ),
-            textAlign: TextAlign.center,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildConsultationsList() {
-    return RefreshIndicator(
-      onRefresh: () async {
-        if (_userId != null && _userRole != null) {
-          await _loadConsultations(_userId!, _userRole!);
-          await _loadUnreadCounts(_userId!);
-        } else {
-          await _loadUserDataAndConsultations();
-        }
-      },
-      child: ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _consultations.length,
-        itemBuilder: (context, index) {
-          final consultation = _consultations[index];
-          return _buildConsultationCard(consultation);
-        },
-      ),
-    );
-  }
-
-  Widget _buildConsultationCard(Consultation consultation) {
-    // Determine if current user is doctor or patient
-    final bool isDoctor = _userRole == 'doctor';
-    
-    // Get the name of the other person in the conversation
-    final String otherPersonName = isDoctor 
-        ? consultation.patientName ?? 'Patient'
-        : consultation.doctorName ?? 'Doctor';
-    
-    // Get subtitle text
-    final String subtitle = isDoctor
-        ? 'Patient'
-        : consultation.doctorSpecialty ?? 'Medical Professional';
-    
-    // Format date
-    final String dateText = consultation.consultationDate != null
-        ? DateFormat('MMM dd, yyyy').format(consultation.consultationDate!)
-        : '';
-    
-    // Get unread count
-    final int unreadCount = _unreadCounts[consultation.id] ?? 0;
-    
-    // Get icon based on consultation type
-    IconData typeIcon;
-    switch (consultation.type.toLowerCase()) {
-      case 'video':
-        typeIcon = Icons.videocam;
-        break;
-      case 'voice':
-      case 'audio':
-        typeIcon = Icons.phone;
-        break;
-      case 'text':
-      default:
-        typeIcon = Icons.chat_bubble_outline;
-        break;
-    }
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          // Navigate to chat screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(
-                consultation: consultation,
-                receiverName: otherPersonName,
-                isDoctor: isDoctor,
-              ),
-            ),
-          ).then((_) {
-            // Refresh unread counts when returning from chat
-            if (_userId != null) {
-              _loadUnreadCounts(_userId!);
-            }
-          });
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: _getConsultationTypeColor(consultation.type).withOpacity(0.2),
-                child: Icon(
-                  typeIcon,
-                  color: _getConsultationTypeColor(consultation.type),
-                ),
-              ),
-              const SizedBox(width: 16),
-              
-              // Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      otherPersonName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getConsultationTypeColor(consultation.type).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                typeIcon,
-                                color: _getConsultationTypeColor(consultation.type),
-                                size: 12,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _getConsultationTypeText(consultation.type),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _getConsultationTypeColor(consultation.type),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (dateText.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              dateText,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Unread count badge and chevron
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (unreadCount > 0)
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        unreadCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Icon(
-                    Icons.chevron_right,
-                    color: Colors.grey[400],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -382,10 +407,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
         return Colors.blue;
       case 'voice':
       case 'audio':
-        return Colors.green;
+        return Colors.orange;
       case 'text':
       default:
-        return Colors.purple;
+        return Colors.green;
+    }
+  }
+
+  IconData _getConsultationTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'video':
+        return Icons.videocam;
+      case 'voice':
+      case 'audio':
+        return Icons.phone;
+      case 'text':
+      default:
+        return Icons.chat_bubble_outline;
     }
   }
 

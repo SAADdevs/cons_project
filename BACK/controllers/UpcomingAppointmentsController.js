@@ -63,7 +63,6 @@ static async getDoctorUpcomingAppointments(req, res) {
             WHERE 
                 c.doctor_id = $1
                 AND c.status = 'accepted'
-                AND c.consultation_date > NOW()
             ORDER BY 
                 c.consultation_date ASC;
         `;

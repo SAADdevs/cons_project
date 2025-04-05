@@ -33,15 +33,9 @@ router.get('/search', ChatController.searchMessages);
 // Export chat history for a consultation
 router.get('/export/:consultation_id', ChatController.exportChatHistory);
 
-// Import chat history for a consultation
-router.post('/import', ChatController.importChatHistory);
-
+router.get('/export/:consultation_id/:user_id', ChatController.exportChatHistory);
 // Clear chat history for a consultation
 router.delete('/clear/:consultation_id', ChatController.clearChatHistory);
 
-router.post('/archive/:consultation_id', ChatController.archiveChatHistory);
-
-// Retrieve archived chat history (optional, with permissions)
-router.get('/archived/:consultation_id', ChatController.getArchivedChatHistory);
 
 module.exports = router;

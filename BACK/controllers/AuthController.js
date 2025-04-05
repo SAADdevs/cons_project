@@ -3,6 +3,8 @@ const Doctor = require('../Models/Doctor');
 const Patient = require('../Models/Patient');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); 
+const pool = require('../config/db');
+
 
 class AuthController {
     // Register a new user
@@ -334,6 +336,72 @@ static async loginUser(req, res) {
             res.status(500).json({ message: "Server error" });
         }
     }
+
+    // Add this method to your AuthController.js or create a separate method
+
+static async getCurrentUser(req, res) {
+    try {
+        // Check if user is set by middleware
+        if (!req.user || !req.user.id) {
+            console.error('User not set in request:', req.user);
+            return res.status(401).json({ message: 'Not authenticated. Please login again.' });
+        }
+        
+        const userId = req.user.id;
+        console.log('Getting profile for user ID:', userId);
+        
+        // Query to get basic user info
+        const userQuery = await pool.query(
+            'SELECT id, full_name, email, role, created_at FROM users WHERE id = $1',
+            [userId]
+        );
+        
+        if (userQuery.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        const user = userQuery.rows[0];
+        console.log('Found user:', user);
+        
+        // Depending on the role, get the professional ID (doctor_id or patient_id)
+        if (user.role === 'doctor') {
+            const doctorQuery = await pool.query(
+                'SELECT id, specialties, hospital, is_available, is_verified FROM doctors WHERE user_id = $1',
+                [userId]
+            );
+            
+            if (doctorQuery.rows.length > 0) {
+                user.doctor_id = doctorQuery.rows[0].id;
+                user.specialties = doctorQuery.rows[0].specialties;
+                user.hospital = doctorQuery.rows[0].hospital;
+                user.is_available = doctorQuery.rows[0].is_available;
+                user.is_verified = doctorQuery.rows[0].is_verified;
+            }
+        } else if (user.role === 'patient') {
+            const patientQuery = await pool.query(
+                'SELECT id, age, gender FROM patients WHERE user_id = $1',
+                [userId]
+            );
+            
+            if (patientQuery.rows.length > 0) {
+                user.patient_id = patientQuery.rows[0].id;
+                user.age = patientQuery.rows[0].age;
+                user.gender = patientQuery.rows[0].gender;
+            }
+        }
+        
+        // Remove sensitive data
+        delete user.password;
+        
+        return res.status(200).json(user);
+    } catch (error) {
+        console.error('Error getting current user:', error);
+        return res.status(500).json({
+            message: 'Error retrieving user profile',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+}
 
     static async getAuthUserId(req, res) {
         try {

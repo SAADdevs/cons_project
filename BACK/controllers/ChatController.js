@@ -11,49 +11,97 @@ class ChatController {
         try {
             const { 
                 consultation_id, 
-                sender_id, 
-                receiver_id,
+                sender_id,      // This is a user_id from users table
+                receiver_id,    // This is also a user_id 
                 message_text, 
-                is_from_doctor 
+                is_from_doctor,
+                media_url,
+                message_type 
             } = req.body;
-    
-            // Verify the consultation exists
+            
+            console.log('Received message request:');
+            console.log('- Sender user ID:', sender_id);
+            console.log('- Receiver user ID:', receiver_id);
+            console.log('- Consultation ID:', consultation_id);
+            console.log('- Is from doctor:', is_from_doctor);
+            
+            // 1. First, verify the consultation exists
             const consultationQuery = await pool.query(
-                'SELECT patient_id, doctor_id FROM consultations WHERE id = $1',
+                'SELECT c.id, c.patient_id, c.doctor_id, d.user_id AS doctor_user_id, p.user_id AS patient_user_id ' +
+                'FROM consultations c ' +
+                'JOIN doctors d ON c.doctor_id = d.id ' +
+                'JOIN patients p ON c.patient_id = p.id ' +
+                'WHERE c.id = $1',
                 [consultation_id]
             );
-    
+            
             if (consultationQuery.rows.length === 0) {
                 return res.status(404).json({ message: "Consultation not found" });
             }
-    
-            const { patient_id, doctor_id } = consultationQuery.rows[0];
-    
-            // Get sender role from the users table
-            const userQuery = await pool.query(
-                'SELECT role FROM users WHERE id = $1',
-                [sender_id]
-            );
-    
-            if (userQuery.rows.length === 0) {
-                return res.status(404).json({ message: "Sender not found" });
+            
+            const consultation = consultationQuery.rows[0];
+            console.log('Found consultation:', consultation);
+            
+            // 2. Verify the sender is part of this consultation
+            if (is_from_doctor) {
+                // If message is from doctor, check if sender_id matches doctor_user_id
+                if (parseInt(sender_id) !== parseInt(consultation.doctor_user_id)) {
+                    console.log('Doctor validation failed:');
+                    console.log('- Sender user ID:', parseInt(sender_id));
+                    console.log('- Doctor user ID:', parseInt(consultation.doctor_user_id));
+                    
+                    return res.status(403).json({ message: "Sender is not the doctor of this consultation" });
+                }
+            } else {
+                // If message is from patient, check if sender_id matches patient_user_id
+                if (parseInt(sender_id) !== parseInt(consultation.patient_user_id)) {
+                    console.log('Patient validation failed:');
+                    console.log('- Sender user ID:', parseInt(sender_id));
+                    console.log('- Patient user ID:', parseInt(consultation.patient_user_id));
+                    
+                    return res.status(403).json({ message: "Sender is not the patient of this consultation" });
+                }
             }
-    
-            // Insert message using the patient_id and doctor_id from the consultation
+            
+            // 3. Build query for inserting the message
+            let queryFields = 'consultation_id, patient_id, doctor_id, message_text, is_from_doctor';
+            let queryValues = '$1, $2, $3, $4, $5';
+            let queryParams = [
+                consultation_id, 
+                consultation.patient_id, 
+                consultation.doctor_id,
+                message_text, 
+                is_from_doctor
+            ];
+            
+            // Add optional fields if provided
+            if (media_url) {
+                queryFields += ', media_url';
+                queryValues += `, $${queryParams.length + 1}`;
+                queryParams.push(media_url);
+            }
+            
+            if (message_type) {
+                queryFields += ', message_type';
+                queryValues += `, $${queryParams.length + 1}`;
+                queryParams.push(message_type);
+            }
+            
+            // Always add timestamp
+            queryFields += ', created_at';
+            queryValues += ', NOW()';
+            
+            // 4. Insert the message
+            console.log('Inserting message with params:', queryParams);
             const result = await pool.query(
                 `INSERT INTO chat_messages 
-                (consultation_id, patient_id, doctor_id, message_text, is_from_doctor, created_at)
-                VALUES ($1, $2, $3, $4, $5, NOW())
+                (${queryFields})
+                VALUES (${queryValues})
                 RETURNING *`,
-                [
-                    consultation_id, 
-                    patient_id, 
-                    doctor_id,
-                    message_text, 
-                    is_from_doctor // Use the provided flag
-                ]
+                queryParams
             );
-    
+            
+            console.log('Message inserted successfully');
             res.status(201).json({
                 success: true,
                 chat_message: result.rows[0]
@@ -68,6 +116,8 @@ class ChatController {
             });
         }
     }
+
+    
     // Get consultation chat history
     // In your ChatController.js
     static async getConsultationChat(req, res) {
@@ -585,6 +635,72 @@ static async getArchivedChatHistory(req, res) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 }
+// Upload media file
+static async uploadMedia(req, res) {
+    try {
+        // Check if file was uploaded
+        if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        const { consultation_id } = req.body;
+        const user_id = req.user.id; // From auth middleware
+
+        // Validate consultation
+        const consultation = await Consultation.getById(consultation_id);
+        if (!consultation) {
+            return res.status(404).json({ message: "Consultation not found" });
+        }
+
+        // Determine message type based on file mime type
+        const getMessageType = (mimetype) => {
+            if (mimetype.startsWith('image/')) return 'image';
+            if (mimetype === 'application/pdf') return 'document';
+            if (
+                mimetype === 'application/msword' || 
+                mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ) return 'document';
+            return 'file';
+        };
+
+        // Construct file URL 
+        const mediaUrl = `/uploads/consultations/${consultation_id}/${req.file.filename}`;
+
+        // Determine sender details
+        const userRole = await User.getUserRole(user_id);
+        const isFromDoctor = userRole === 'doctor';
+
+        // Create message entry
+        const messageType = getMessageType(req.file.mimetype);
+        const message = await ChatMessage.createMessage(
+            consultation.patient_id,
+            consultation.doctor_id,
+            consultation_id,
+            req.file.originalname, // Use filename as message text
+            mediaUrl,
+            messageType,
+            isFromDoctor
+        );
+
+        // Emit socket event if available
+        if (req.io) {
+            req.io.to(`consultation_${consultation_id}`).emit('new_message', message);
+        }
+
+        res.status(201).json({
+            message: "File uploaded successfully",
+            media_url: mediaUrl,
+            chat_message: message
+        });
+    } catch (error) {
+        console.error('Error uploading media:', error);
+        res.status(500).json({ 
+            message: "Failed to upload media", 
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        });
+    }
 }
+}
+
 
 module.exports = ChatController;

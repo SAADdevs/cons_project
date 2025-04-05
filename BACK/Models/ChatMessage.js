@@ -853,6 +853,23 @@ static async getConsultationMessages(consultationId) {
         cm.created_at ASC
     `, [consultationId]);
   }
+  // Update the existing createMessage method
+static async createMessage(patient_id, doctor_id, consultation_id, message_text, media_url = null, message_type = 'text', is_from_doctor = false) {
+    try {
+        const result = await pool.query(
+            `INSERT INTO chat_messages 
+                (patient_id, doctor_id, consultation_id, message_text, media_url, message_type, created_at, is_read, is_from_doctor)
+             VALUES 
+                ($1, $2, $3, $4, $5, $6, NOW(), false, $7)
+             RETURNING *`,
+            [patient_id, doctor_id, consultation_id, message_text, media_url, message_type, is_from_doctor]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error creating chat message:', error);
+        throw error;
+    }
+}
 }
 
 module.exports = ChatMessage;

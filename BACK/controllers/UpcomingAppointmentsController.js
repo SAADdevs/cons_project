@@ -4,9 +4,7 @@ const Doctor = require('../Models/Doctor');
 const pool = require('../config/db'); // Add this import statement
 
 class UpcomingAppointmentController {
-    // Get upcoming appointments for a doctor
-   // Fix in UpcomingAppointmentController.js
-// controllers/UpcomingAppointmentsController.js
+    
 static async getDoctorUpcomingAppointments(req, res) {
     try {
         const inputDoctorId = req.params.doctor_id;

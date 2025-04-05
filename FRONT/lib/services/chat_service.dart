@@ -5,9 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:my_app/core/models/consultation.dart';
+import 'package:path/path.dart' as path;
 import '../basrel.dart';
 import '../core/models/chat_message_model.dart';
 import '../services/auth_service_api.dart';
+
 
 class ChatService {
   // Get consultation chat history
@@ -54,6 +56,69 @@ class ChatService {
   }
 }
 
+static Future<String> uploadMediaFile({
+    required File file,
+    required int consultationId,
+    String? description,
+  }) async {
+    try {
+      final token = await ApiService.getAuthToken();
+      if (token == null) throw Exception('Authentication token not found');
+
+      // Determine MIME type manually
+      final mimeType = _getMimeType(file.path);
+      
+      // Create multipart request
+      final request = http.MultipartRequest(
+        'POST', 
+        Uri.parse('$baseUrl/chat/upload-media')
+      );
+
+      // Add headers
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'multipart/form-data',
+      });
+
+      // Add file to request
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file', 
+          file.path,
+          filename: path.basename(file.path),
+        )
+      );
+
+      // Add additional form fields
+      request.fields['consultation_id'] = consultationId.toString();
+      if (description != null) {
+        request.fields['description'] = description;
+      }
+
+      // Send request and get response
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // Handle response
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseBody = json.decode(response.body);
+        final mediaUrl = responseBody['media_url'];
+        
+        if (mediaUrl == null) {
+          throw Exception('Media URL not found in response');
+        }
+        
+        return mediaUrl;
+      } else {
+        throw Exception('File upload failed: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Error uploading media file: $e');
+      rethrow;
+    }
+  }
+
+
   // Get unread message count for all consultations
   static Future<int> getUnreadCount(int userId) async {
     try {
@@ -80,42 +145,86 @@ class ChatService {
     }
   }
   // Send a message
- static Future<ChatMessage> sendMessage({
-  required int senderId,
-  required int receiverId,
-  required int consultationId,
-  required String messageText,
-  required bool isFromDoctor,
-}) async {
-  try {
-    final token = await ApiService.getAuthToken();
-    if (token == null) throw Exception('Authentication token not found');
-    
-    final response = await http.post(
-      Uri.parse('$baseUrl/chat/send'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: json.encode({
-        'sender_id': senderId,
+     static Future<void> sendMessage({
+    int? senderId,  // This can be null or 0
+    required int receiverId,
+    required int consultationId,
+    required String messageText,
+    required bool isFromDoctor,
+    String? mediaUrl,
+    String? messageType,
+  }) async {
+    try {
+      // Get the current user data if senderId is null or 0
+      int actualSenderId;
+      
+      if (senderId == null || senderId == 0) {
+        // Fetch current user info from API
+        final userData = await ApiService.getCurrentUser();
+        
+        // Make sure the ID is an integer
+        actualSenderId = userData['id'] is int ? userData['id'] : int.parse(userData['id'].toString());
+        
+        print('Updated sender ID from ${senderId ?? 'null'} to $actualSenderId');
+        
+        // Double check that we have a valid ID now
+        if (actualSenderId == 0) {
+          throw Exception('Unable to determine user ID');
+        }
+      } else {
+        actualSenderId = senderId;
+      }
+      
+      // Debug log
+      print("Sending message with:");
+      print("- Sender ID: $actualSenderId");
+      print("- Receiver ID: $receiverId");
+      print("- Consultation ID: $consultationId");
+      print("- Is From Doctor: $isFromDoctor");
+      
+      // Prepare the payload
+      final payload = {
+        'sender_id': actualSenderId,
         'receiver_id': receiverId,
         'consultation_id': consultationId,
         'message_text': messageText,
         'is_from_doctor': isFromDoctor,
-      }),
-    );
-    
-    if (response.statusCode == 201) {
-      final responseData = json.decode(response.body);
-      return ChatMessage.fromJson(responseData['chat_message']);
-    } else {
-      throw Exception('Failed to send message: ${response.statusCode}');
+      };
+
+      // Add optional fields only if they are provided and not empty
+      if (mediaUrl != null && mediaUrl.isNotEmpty) {
+        payload['media_url'] = mediaUrl;
+      }
+      
+      if (messageType != null && messageType.isNotEmpty) {
+        payload['message_type'] = messageType;
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/chat/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await ApiService.getAuthToken()}',
+        },
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode != 201) {
+        throw Exception('Failed to send message: ${response.body}');
+      }
+
+      print('Message sent successfully');
+      return;
+    } catch (e) {
+      print('Send message error: $e');
+      rethrow;
     }
-  } catch (e) {
-    throw Exception('Error sending message: $e');
   }
-}
+  
+
+
+  
+
   static Future<List<Consultation>> fetchUpcomingConsultations(int doctorId) async {
     try {
       final token = await ApiService.getAuthToken();
@@ -137,6 +246,39 @@ class ChatService {
       }
     } catch (e) {
       throw Exception('Error fetching upcoming consultations: $e');
+    }
+  }
+
+  static String _getMimeType(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'wav':
+        return 'audio/wav';
+      case 'mp4':
+        return 'video/mp4';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
     }
   }
 
@@ -245,6 +387,33 @@ class ChatService {
   }
 
 
+static String _determineMediaType(File file) {
+    final extension = path.extension(file.path).toLowerCase().replaceFirst('.', '');
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'bmp':
+        return 'image';
+      case 'pdf':
+      case 'doc':
+      case 'docx':
+      case 'xls':
+      case 'xlsx':
+        return 'document';
+      case 'mp3':
+      case 'wav':
+      case 'aac':
+        return 'audio';
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return 'video';
+      default:
+        return 'file';
+    }
+  }
 
 
 
@@ -272,43 +441,7 @@ class ChatService {
   }
 }
 
-
-
-  // Get consultation chat history
-  
-
-  // Get unread message count for all consultations
-  
-
-  
-  
-  // static Future<void> markMessagesAsRead({
-  //   required int userId,
-  //   required int consultationId,
-  // }) async {
-  //   try {
-  //     final response = await http.put(
-  //       Uri.parse('$baseUrl/chat/mark-read'),
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Authorization': 'Bearer ${await _getAuthToken()}',
-  //       },
-  //       body: json.encode({
-  //         'user_id': userId,
-  //         'consultation_id': consultationId,
-  //       }),
-  //     );
-
-  //     if (response.statusCode != 200) {
-  //       throw Exception('Failed to mark messages as read');
-  //     }
-  //   } catch (e) {
-  //     print('Error marking messages as read: $e');
-  //     rethrow;
-  //   }
-  // }
-
-
+ 
 
 
    

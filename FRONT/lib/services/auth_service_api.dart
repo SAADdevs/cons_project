@@ -5,6 +5,10 @@ import 'package:my_app/basrel.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
+
+
+
+
   static const secureStorage = FlutterSecureStorage();
 
   // Login Function
@@ -260,6 +264,8 @@ class ApiService {
     }
   }
   
+
+  
   // Update user profile
   static Future<Map<String, dynamic>> updateUserProfile({
     required String fullName,
@@ -440,13 +446,15 @@ class ApiService {
   return null;
 }
 
+
+
 static Future<int?> getDoctorId(int userId) async {
   if (userId == null) {
     debugPrint('Invalid user ID provided');
     return null;
   }
   final response = await http.get(
-    Uri.parse('http://192.168.1.7:5000/api/doctors/get-doctor-id/$userId'),
+    Uri.parse('http://192.168.1.36:5000/api/doctors/get-doctor-id/$userId'),
     headers: {'Authorization': 'Bearer ${await getAuthToken()}'},
   );
   if (response.statusCode == 200) {
@@ -456,4 +464,41 @@ static Future<int?> getDoctorId(int userId) async {
   print('id of the facking doctor not getting-----------------------------'); 
   return null;
 }
+  static Map<String, dynamic>? _currentUserData;
+
+ static Future<Map<String, dynamic>> getCurrentUser({bool forceRefresh = false}) async {
+    // Return cached data if available and not forcing refresh
+    if (_currentUserData != null && !forceRefresh) {
+      return _currentUserData!;
+    }
+    
+    try {
+      final token = await getAuthToken();
+      
+      if (token == null) {
+        throw Exception('No authentication token available');
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/auth/me'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+      
+      if (response.statusCode != 200) {
+        throw Exception('Failed to get user profile: ${response.body}');
+      }
+      
+      // Parse and cache the response
+      _currentUserData = jsonDecode(response.body);
+      print('Current user data loaded: ${_currentUserData!['id']} (${_currentUserData!['role']})');
+      
+      return _currentUserData!;
+    } catch (e) {
+      print('Error getting current user: $e');
+      rethrow;
+    }
+  }
+
 }

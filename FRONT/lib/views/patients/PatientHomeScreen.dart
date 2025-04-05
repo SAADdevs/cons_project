@@ -8,7 +8,6 @@ import 'package:my_app/views/patients/DoctorCategoriesScreen.dart';
 import 'package:my_app/views/patients/DoctorsByCategoryScreen.dart';
 import 'package:my_app/views/patients/MyConsultationsScreen.dart';
 import 'package:my_app/views/patients/HealthAdviceDetailsScreen.dart';
-import 'package:my_app/views/Chat/enhanced_chat_list_screen.dart';
 import 'package:my_app/views/profile/profile_screen.dart';
 import 'package:my_app/core/models/healthAdvice.dart';
 import 'package:my_app/services/auth_service_api.dart'; // Import auth service
@@ -108,7 +107,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
   List<HealthAdvice> _healthTips = [];
   bool _isLoadingTips = true;
   bool _isLoadingUserData = true;
-  String _errorMessage = '';
   bool _showError = false;
   String _patientName = '';
   final ScrollController _scrollController = ScrollController();
@@ -154,7 +152,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
   Future<void> _loadHealthTips() async {
     setState(() {
       _isLoadingTips = true;
-      _errorMessage = '';
       _showError = false;
     });
 
@@ -200,7 +197,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
         print('Successfully loaded ${_healthTips.length} health tips');
       } else {
         setState(() {
-          _errorMessage = 'Failed to load health tips: ${response.statusCode}';
           _isLoadingTips = false;
           
           // We'll show health tips UI anyway, just without data
@@ -210,7 +206,6 @@ class _PatientHomePageState extends State<PatientHomePage> {
     } catch (e) {
       print('Error loading health tips: $e');
       setState(() {
-        _errorMessage = 'Error: $e';
         _isLoadingTips = false;
         _healthTips = []; // Empty list instead of null
       });

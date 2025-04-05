@@ -1,3 +1,5 @@
+import 'dart:io';
+
 class ChatMessage {
   final int id;
   final int consultationId;
@@ -11,6 +13,8 @@ class ChatMessage {
   final bool isFromDoctor;
   final String? senderName;
   final String? receiverName;
+  final File? localFile; // Added to support local file handling
+  final UploadStatus uploadStatus; // Added to track upload status
 
   ChatMessage({
     required this.id,
@@ -22,9 +26,11 @@ class ChatMessage {
     this.messageType = 'text',
     this.isRead = false,
     required this.createdAt,
-  required this.isFromDoctor,  // ✅ This should exist
+    required this.isFromDoctor,
     this.senderName,
     this.receiverName,
+    this.localFile,
+    this.uploadStatus = UploadStatus.idle,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -49,6 +55,7 @@ class ChatMessage {
       isFromDoctor: json['is_from_doctor'] ?? false,
       senderName: json['sender_name'],
       receiverName: json['receiver_name'],
+      uploadStatus: UploadStatus.idle,
     );
   }
 
@@ -80,6 +87,7 @@ class ChatMessage {
     String messageType = 'text',
     String? senderName,
     String? receiverName,
+    File? localFile,
   }) {
     return ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
@@ -94,6 +102,54 @@ class ChatMessage {
       isFromDoctor: isFromDoctor,
       senderName: senderName,
       receiverName: receiverName,
+      localFile: localFile,
+      uploadStatus: localFile != null 
+          ? UploadStatus.pending 
+          : UploadStatus.idle,
     );
   }
+
+  // Create a copy of the message with updated properties
+  ChatMessage copyWith({
+    int? id,
+    int? consultationId,
+    int? senderId,
+    int? receiverId,
+    String? messageText,
+    String? mediaUrl,
+    String? messageType,
+    bool? isRead,
+    DateTime? createdAt,
+    bool? isFromDoctor,
+    String? senderName,
+    String? receiverName,
+    File? localFile,
+    UploadStatus? uploadStatus,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      consultationId: consultationId ?? this.consultationId,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      messageText: messageText ?? this.messageText,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      messageType: messageType ?? this.messageType,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      isFromDoctor: isFromDoctor ?? this.isFromDoctor,
+      senderName: senderName ?? this.senderName,
+      receiverName: receiverName ?? this.receiverName,
+      localFile: localFile ?? this.localFile,
+      uploadStatus: uploadStatus ?? this.uploadStatus,
+    );
+  }
+}
+
+// Enum to track upload status of media files
+enum UploadStatus {
+  idle,      // No upload in progress
+  pending,   // Waiting to start upload
+  uploading, // Currently uploading
+  success,   // Upload completed successfully
+  failed,    // Upload failed
 }

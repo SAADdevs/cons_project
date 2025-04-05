@@ -20,5 +20,9 @@ router.put('/profile', verifyToken, AuthController.updateUserProfile); // NEW: A
 
 // Password management
 router.post('/change-password', verifyToken, AuthController.changePassword);
+router.get('/me', verifyToken,
+    AuthController.getCurrentUser
+);
+
 
 module.exports = router;

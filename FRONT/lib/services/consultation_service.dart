@@ -67,6 +67,65 @@ class ConsultationService {
     }
   }
 
+  // New method to fetch patients for a specific doctor
+  static Future<List<Map<String, dynamic>>> fetchPatientsByDoctor(int doctorId) async {
+  try {
+    final token = await ApiService.getAuthToken();
+    if (token == null) throw Exception('Authentication token not found');
+    
+    final List<String> endpoints = [
+      '$baseUrl/doctors/$doctorId/patients',
+      '$baseUrl/patients/doctor/$doctorId',
+      '$baseUrl/doctor/$doctorId/patients',
+    ];
+    
+    for (final endpoint in endpoints) {
+      try {
+        print('Attempting endpoint: $endpoint');
+        
+        final response = await http.get(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+        
+        print('Response status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
+        
+        if (response.statusCode == 200) {
+          final List<dynamic> data = jsonDecode(response.body);
+          
+          if (data.isEmpty) {
+            print('No patients found for this endpoint');
+            continue;
+          }
+          
+          return data.map((patient) => {
+            'id': patient['id'] ?? 0,
+            'name': patient['name'] ?? patient['full_name'] ?? 'Unknown Patient',
+            'age': patient['age'],
+            'gender': patient['gender'],
+            'lastConsultation': patient['last_consultation_date'] != null 
+                ? DateTime.parse(patient['last_consultation_date']) 
+                : null,
+            'consultationCount': patient['consultation_count'] ?? 0,
+            'activeConsultation': patient['has_active_consultation'] ?? false,
+          }).toList();
+        }
+      } catch (e) {
+        print('Error with endpoint $endpoint: $e');
+        // Continue to next endpoint
+      }
+    }
+    
+    throw Exception('Failed to load patients after trying multiple endpoints');
+  } catch (e) {
+    print('Final error in fetchPatientsByDoctor: $e');
+    rethrow;
+  }
+}
   // Fetch pending consultations for a doctor with improved error handling
   static Future<List<Consultation>> fetchPendingConsultations(int doctorId) async {
     try {
@@ -108,6 +167,7 @@ class ConsultationService {
       throw Exception('Error fetching consultations: $e');
     }
   }
+  
 
   // Update consultation status (accept/refuse)
   static Future<void> updateConsultationStatus({

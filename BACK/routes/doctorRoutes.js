@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const DoctorController = require('../controllers/DoctorController'); 
+const ConsultationController = require('../controllers/ConsultationController');  // Add this import
+
+
+router.get('/:doctorId/patients', ConsultationController.getPatientsByDoctor);
 
 // Basic routes for doctors
 router.get('/', DoctorController.getAllDoctors);
@@ -19,5 +23,6 @@ router.put('/update-availability', DoctorController.updateDoctorAvailability);
 router.get('/get/with-names', DoctorController.getDoctorsWithNames);
 router.get('/available/list', DoctorController.getAvailableDoctors);
 router.get('/get-doctor-id/:user_id', DoctorController.getDoctorIdByUserId);
+router.get('/:doctorId/patients', ConsultationController.getPatientsByDoctor);
 
 module.exports = router;

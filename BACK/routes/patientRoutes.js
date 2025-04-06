@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const PatientController = require('../controllers/PatientController');
+const ConsultationController = require('../controllers/ConsultationController');
 
 // Public routes - doctors listing
 router.get('/doctors', PatientController.getAvailableDoctors);
@@ -17,6 +18,8 @@ router.get('/consultations/details/:id', PatientController.getConsultationDetail
 router.get('/health-advice', PatientController.getApprovedHealthAdvice);
 router.get('/health-advice/:id', PatientController.getHealthAdviceById);
 router.get('/health-advice/category/:category', PatientController.getHealthAdviceByCategory);
+
+
 
 // Patient profile
 router.get('/profile/:patient_id', PatientController.getPatientProfile);

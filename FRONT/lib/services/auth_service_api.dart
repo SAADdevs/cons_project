@@ -189,7 +189,7 @@ class ApiService {
       
       // Using the correct endpoint that's used in admin_doctors_page.dart
       final response = await http.get(
-        Uri.parse("http://192.168.1.7:5000/api/doctors/with-names"),
+        Uri.parse("$baseUrl/doctors/with-names"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token"
@@ -437,7 +437,7 @@ class ApiService {
     return null;
   }
   final response = await http.get(
-    Uri.parse('http://192.168.1.7:5000/api/patients/consultations/get-patient-id/$userId'),
+    Uri.parse('$baseUrl/patients/consultations/get-patient-id/$userId'),
     headers: {'Authorization': 'Bearer ${await getAuthToken()}'},
   );
   if (response.statusCode == 200) {
@@ -454,7 +454,7 @@ static Future<int?> getDoctorId(int userId) async {
     return null;
   }
   final response = await http.get(
-    Uri.parse('http://192.168.1.36:5000/api/doctors/get-doctor-id/$userId'),
+    Uri.parse('$baseUrl/doctors/get-doctor-id/$userId'),
     headers: {'Authorization': 'Bearer ${await getAuthToken()}'},
   );
   if (response.statusCode == 200) {
